@@ -128,6 +128,7 @@ while(1):
 		registration_date = ConvertWADate(ur['RegistrationDate'])
 		event_start_date = ConvertWADate(ur['Event']['StartDate'])
 		time_before_class = event_start_date - datetime.now(tzlocal)
+		registration_time_before_class = event_start_date - registration_date
 		time_since_registration = datetime.now(tzlocal) - registration_date
 		#toEmail = registrantEmail
 		toEmail = ['iceman81292@gmail.com']
@@ -151,12 +152,12 @@ while(1):
 				if new_registration:
 					print ("Sending nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
 					if(registration_date < enforcement_date):
-						template = open("./pre-warning.txt", 'r')
+						template = open(config.get('files', 'pre-warningTemplate'), 'r')
 					else:
-						template = open("./warning.txt", 'r')
-					if time_before_class > (unpaid_cutoff + unpaid_buffer):
+						template = open(config.get('files', 'warningTemplate'), 'r')
+					if registration_time_before_class > (unpaid_cutoff + unpaid_buffer):
 						drop_date = event_start_date - unpaid_cutoff
-					elif time_before_class > unpaid_buffer:
+					elif registration_time_before_class > unpaid_buffer:
 						drop_date = registration_date + unpaid_buffer
 					else:
 						drop_date = event_start_date - noshow_drop
@@ -164,11 +165,11 @@ while(1):
 					needs_email = True
 
 				elif time_since_registration > unpaid_buffer:
-					if time_before_class < unpaid_cutoff:
+					if registration_time_before_class < unpaid_cutoff:
 						if(registration_date > enforcement_date):
 							print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
 							#monitor.DeleteRegistration(18249306)
-							template = open("./cancellation.txt", 'r')
+							template = open(config.get('files', 'cancellationTemplate'), 'r')
 							delete_list.append(ur['Id'])
 							needs_email = True
 			
