@@ -1,0 +1,21 @@
+Incomplete Registration For {EventName}
+----
+Hello {FirstName},
+
+
+It appears that you have an unpaid registration for "{EventName}" on {EventDate} at MakeICT.  
+
+Due to the frequency of unpaid no-shows for our classes, we have decided to implement a new policy regarding class payments.  Starting on {EnforcementDate}, all new registrations that are unpaid within {CancellationWindow} days of an event will be cancelled automatically.  Online payments are the easiest and fastest for us to process, but cash and check will still be accepted. 
+
+Payment options
+	1. Through PayPal at members.makeict.org/Sys/Profile/Finances
+	2. Cash/Check in the dropbox at MakeICT.  If you use this method, please reply to this email and let us know so we can hold your spot.  It will take a few days to process the payment.
+
+If you have any questions or concerns, you can send them in a reply to this email.  I'll make sure they reach the appropriate party.
+
+Thank you for your interest in events at MakeICT!
+
+
+Sincerely,
+
+MakeICT's pet robot
