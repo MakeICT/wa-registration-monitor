@@ -121,7 +121,7 @@ def ConvertWADate(wa_date):
 
 
 config = configparser.SafeConfigParser()
-config.read('myconfig.ini')
+config.read('config.ini')
 print(config.items('api'))
 print(config.items('thresholds'))
 
