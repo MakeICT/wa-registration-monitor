@@ -17,21 +17,45 @@ tzlocal = tz.gettz('CST')
 class RegiMon():
 	def __init__(self, api_key):		
 		self.options = {"API_key":api_key}
-		self.ConnectAPI()
+		while(not self.ConnectAPI()):
+			pass
 
 	def ConnectAPI(self):
 		logging.debug('Connecting to API')
 		self.api = WaApiClient()
-		self.api.authenticate_with_apikey(self.options["API_key"])
+		try:
+			self.api.authenticate_with_apikey(self.options["API_key"])
+			return True
+		except urllib.error.URLError as URLerr:
+			print("NO INTERWEBZ!?")
+			#print(str(URLerr.reason))
+			if "[Errno -2]" in str(URLerr.reason):
+				print("NOPE")
+				return False
+			else:
+				raise
+		except urllib.error.HTTPError as HTTPError:
+			if err.code == 401:
+				print("API key not valid")
+			else:
+				raise
 
 	def _make_api_request(self, request_string, api_request_object=None, method=None):
 		try:	
-			return self.api.execute_request(request_string, api_request_object, method)	 
-		except urllib.error.HTTPError as httpErr:
-			if httpErr.code == 429:
+			return self.api.execute_request(request_string, api_request_object, method)
+		except urllib.error.URLError as URLerr:
+			print("NO INTERWEBZ!?")
+			#print(str(URLerr.reason))
+			if "[Errno -2]" in str(URLerr.reason):
+				print("NOPE")
+				return False
+			else:
+				raise
+		except urllib.error.HTTPError as HTTPerr:
+			if HTTPerr.code == 429:
 				print("too many requests")
 				return False
-			if httpErr.code == 110:
+			if HTTPerr.code == 110:
 				print("timeout")
 				return False
 			else:
@@ -42,6 +66,8 @@ class RegiMon():
 	def FindUnpaidRegistrants(self):
 		logging.debug('Searching for unpaid registrants in upcoming events')
 		events = self._make_api_request('Events?$filter=IsUpcoming+eq+true')
+		if events == False:
+			return False
 		#events = api.execute_request('Events')
 		#print (events)
 		total_lost_fees = 0
@@ -69,7 +95,7 @@ class RegiMon():
 		except ValueError:
 			pass
 
-	def GetRegistrationsByContact(self, contact_id):
+	def GetRegistrationsByContact(self, contact_id): 
 		registrations = self._make_api_request('/EventRegistrations?contactId=%d'%contact_id)
 		return registrations
 
@@ -95,7 +121,7 @@ def ConvertWADate(wa_date):
 
 
 config = configparser.SafeConfigParser()
-config.read('config.ini')
+config.read('myconfig.ini')
 print(config.items('api'))
 print(config.items('thresholds'))
 
@@ -114,14 +140,21 @@ mb = MailBot(config.get('email','username'), config.get('email','password'))
 registrations = monitor.GetRegistrationsByContact(24937088)
 for registration in registrations:
  	print ("%s : %d" % (registration['Event']['Name'], registration['Id']))
-monitor.DeleteRegistration(18261255)
+print()
+#monitor.DeleteRegistration(18261255)
 # print("registration deleted?")
 #open_events = monitor.FindUpcomingClassesWithOpenSpots()
 
 nag_list = []
 delete_list = []
+api_call_failures = 0
 while(1):
+	time.sleep(poll_interval)
 	unpaid_registrants = monitor.FindUnpaidRegistrants()
+	if unpaid_registrants == False:
+		api_call_failures += 1
+		print("API call Failures: %d" %(api_call_failures))
+		continue
 	
 	for ur in unpaid_registrants:
 		registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
@@ -175,7 +208,8 @@ while(1):
 			
 				if needs_email:	
 					template.seek(0)
-					t = template.read().format(FirstName = ur['Contact']['Name'].split(',')[1], 
+					t = template.read().format(
+											     FirstName = ur['Contact']['Name'].split(',')[1], 
 												 EventName = ur['Event']['Name'].strip(),
 												 EventDate = event_start_date.strftime(time_format_string),
 												 UnpaidDropDate = drop_date.strftime(time_format_string),
@@ -188,4 +222,4 @@ while(1):
 					mb.send(toEmail, subject , message)
 		#mb.check()
 
-	time.sleep(poll_interval)
+	
