@@ -6,11 +6,11 @@ from datetime import timedelta
 from dateutil import tz
 import urllib
 import configparser
-# import ui
-# from PySide import QtCore
+import MySQLdb
 
 from WildApricotAPI.WildApricotAPI import WaApiClient
 from MailBot.mailer import MailBot
+from Database import Database
 
 tzlocal = tz.gettz('CST')
 
@@ -30,13 +30,20 @@ class RegiMon():
 			print("NO INTERWEBZ!?")
 			#print(str(URLerr.reason))
 			if "[Errno -2]" in str(URLerr.reason):
-				print("NOPE")
+				print("name or service unknown")
+				return False
+			if "[Errno 110]" in str(URLerr.reason):
+				print("connection timed out")
 				return False
 			else:
 				raise
 		except urllib.error.HTTPError as HTTPError:
 			if err.code == 401:
 				print("API key not valid")
+				return False
+			if HTTPerr.code == 110:
+				print("timeout")
+				return False
 			else:
 				raise
 
@@ -47,7 +54,13 @@ class RegiMon():
 			print("NO INTERWEBZ!?")
 			#print(str(URLerr.reason))
 			if "[Errno -2]" in str(URLerr.reason):
-				print("NOPE")
+				print("name or service unknown")
+				return False
+			if "[Errno 110]" in str(URLerr.reason):
+				print("connection timed out")
+				return False
+			if "[Errno 22]" in str(URLerr.reason):
+				print("Somebody poisoned the water hole!")
 				return False
 			else:
 				raise
@@ -68,6 +81,14 @@ class RegiMon():
 		events = self._make_api_request('Events?$filter=IsUpcoming+eq+true')
 		if events == False:
 			return False
+		# for event in events:
+		# 	if "TEST" in event["Name"].split(','):
+		# 		registrants = self._make_api_request('EventRegistrations?eventID='+str(event['Id']))
+		# 		print(event)
+		# 		print('\n')
+		# 		print(registrants)
+		if events == False:
+			return False
 		#events = api.execute_request('Events')
 		#print (events)
 		total_lost_fees = 0
@@ -75,6 +96,8 @@ class RegiMon():
 		for event in events:
 			if event["PendingRegistrationsCount"] > 0:
 				registrants = self._make_api_request('EventRegistrations?eventID='+str(event['Id']))
+				if registrants == False:
+					return False
 				#print(event)
 				#print(event["Name"].strip() + "(" + event["StartDate"] + ")" + ": " + str(event["PendingRegistrationsCount"]))
 				for registrant in registrants:
@@ -91,7 +114,9 @@ class RegiMon():
 
 	def DeleteRegistration(self, registration_id):
 		try:
-			self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), method="DELETE")
+			response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), method="DELETE")
+			if response == False:
+				return False
 		except ValueError:
 			pass
 
@@ -102,6 +127,8 @@ class RegiMon():
 	def FindUpcomingClassesWithOpenSpots(self):
 		logging.debug('Searching for open spots in upcoming events')
 		events = self._make_api_request('Events?$filter=IsUpcoming+eq+true')
+		if events == False:
+			return False
 		open_events = []
 		for event in events:
 			if event["RegistrationsLimit"] != None:
@@ -119,7 +146,10 @@ def ConvertWADate(wa_date):
 	return py_date
 
 
-
+db = Database()
+current_db = db.GetAll()
+for entry in current_db:
+	print (entry)
 config = configparser.SafeConfigParser()
 config.read('config.ini')
 print(config.items('api'))
@@ -137,15 +167,16 @@ enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
 
-registrations = monitor.GetRegistrationsByContact(24937088)
-for registration in registrations:
- 	print ("%s : %d" % (registration['Event']['Name'], registration['Id']))
-print()
+
+# registrations = monitor.GetRegistrationsByContact(24937088)
+# for registration in registrations:
+#  	print ("%s : %d" % (registration['Event']['Name'], registration['Id']))
+# print()
 #monitor.DeleteRegistration(18261255)
 # print("registration deleted?")
 #open_events = monitor.FindUpcomingClassesWithOpenSpots()
 
-nag_list = []
+#nag_list = []
 delete_list = []
 api_call_failures = 0
 while(1):
@@ -166,7 +197,11 @@ while(1):
 		#toEmail = registrantEmail
 		toEmail = ['iceman81292@gmail.com']
 		needs_email = False
-		new_registration = ur['Id'] not in nag_list
+		#new_registration = ur['Id'] not in nag_list
+		if not db.GetEntryByRegistrationID(ur['Id']):
+			new_registration = True
+		else:
+			new_registration = False
 		deleted = ur['Id'] in delete_list
 
 		if new_registration:
@@ -194,14 +229,18 @@ while(1):
 						drop_date = registration_date + unpaid_buffer
 					else:
 						drop_date = event_start_date - noshow_drop
-					nag_list.append(ur['Id'])
+					#nag_list.append(ur['Id'])
+					split_name = ur['Contact']['Name'].split(',')
+					registrant_first_name = split_name[1]
+					registrant_last_name = split_name[0]
+					db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
 					needs_email = True
 
 				elif time_since_registration > unpaid_buffer:
 					if registration_time_before_class < unpaid_cutoff:
 						if(registration_date > enforcement_date):
 							print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
-							#monitor.DeleteRegistration(18249306)
+							#monitor.DeleteRegistration(ur['Id'])
 							template = open(config.get('files', 'cancellationTemplate'), 'r')
 							delete_list.append(ur['Id'])
 							needs_email = True
