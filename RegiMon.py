@@ -140,6 +140,36 @@ class RegiMon():
 
 		return open_events
 
+	def FindUpcomingClassesWithNoCheckinVolunteer(self):
+		logging.debug('Searching for upcoming events with no checkin volunteer')
+		events = self._make_api_request('Events?$filter=IsUpcoming+eq+true')
+		if events == False:
+			return False
+		no_checkin_events = []
+		for event in events:
+			no_checkin_volunteer = True
+			if event["Tags"]:
+				for tag in event["Tags"]:
+					split_tag = tag.split(':')
+					if split_tag[0] == 'checkin':
+						no_checkin_volunteer = False
+
+				#print(event)
+			if no_checkin_volunteer:
+				no_checkin_events.append(event)
+				print(event['Name'].strip() + " has no checkin volunteer.")
+
+		return no_checkin_events
+
+
+	def GetInvoiceByID(self, invoice_id):
+		invoice = self._make_api_request('Invoices/%s' % (invoice_id))
+		return invoice
+
+	def GetLogItems(self):
+		log = self._make_api_request("AuditLogItems/?StartDate=2017-04-25&EndDate=2017-04-27")
+		return log
+
 def ConvertWADate(wa_date):
 	fixed_date = wa_date[0:22]+wa_date[23:]
 	py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
@@ -167,7 +197,10 @@ enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
 
-
+#monitor.GetInvoiceByID('34694085')
+log = monitor.GetLogItems()
+for entry in log:
+	print(entry)
 # registrations = monitor.GetRegistrationsByContact(24937088)
 # for registration in registrations:
 #  	print ("%s : %d" % (registration['Event']['Name'], registration['Id']))
@@ -181,12 +214,14 @@ delete_list = []
 api_call_failures = 0
 while(1):
 	time.sleep(poll_interval)
+
+	##### Find and email unpaid registrants #####
 	unpaid_registrants = monitor.FindUnpaidRegistrants()
 	if unpaid_registrants == False:
 		api_call_failures += 1
 		print("API call Failures: %d" %(api_call_failures))
 		continue
-	
+
 	for ur in unpaid_registrants:
 		registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
 		registration_date = ConvertWADate(ur['RegistrationDate'])
@@ -259,6 +294,22 @@ while(1):
 					message = t.split('----')[1]
 
 					mb.send(toEmail, subject , message)
+
+	##### Find events that need check-in volunteers and email event-team #####
+	events_without_checkin = monitor.FindUpcomingClassesWithNoCheckinVolunteer()
+	#print(events_without_checkin)
+	for event in events_without_checkin:
+		print(event)
+		template = open(config.get('files', 'checkinRequestTemplate'), 'r')
+		template.seek(0)
+		t = template.read().format(
+									 EventName = event['Name'].strip(),
+									 EventDate = event_start_date.strftime(time_format_string),
+									 )
+		subject = t.split('----')[0]
+		message = t.split('----')[1]
+
+		mb.send(toEmail, subject , message)
 		#mb.check()
 
 	

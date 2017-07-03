@@ -1,0 +1,14 @@
+Check-in Volunteer needed For {EventName}
+----
+Hello Check-in Volunteers,
+
+
+A volunteer is needed to run the check-in for "{EventName}" on {EventDate}.  Please respond to this email if you are available to do the check-in for this event.
+
+Thank you for volunteering to help keep our makerspace running smoothly!
+
+
+
+Sincerely,
+
+MakeICT's pet robot

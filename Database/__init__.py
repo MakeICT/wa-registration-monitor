@@ -29,6 +29,21 @@ class Database():
 			else:
 				raise
 
+		sql = """CREATE TABLE EVENT_CHECKINS(
+				 EVENT_ID INT,
+				 VOLUNTEER_EMAIL VARCHAR(255),
+				 INITIAL_NAG_SENT BOOLEAN,
+		         FINAL_NAG_SENT BOOLEAN,
+		         )"""
+		try:
+			self.NewCursor().execute(sql)
+		except MySQLdb.OperationalError as err:
+			if '1050' in str(err):
+				print("database already exists")
+				pass
+			else:
+				raise
+
 		self.Disconnect()
 
 	def Connect(self):
