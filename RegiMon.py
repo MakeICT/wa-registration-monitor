@@ -56,6 +56,9 @@ class RegiMon():
 			if "[Errno -2]" in str(URLerr.reason):
 				print("name or service unknown")
 				return False
+			if "[Errno -3]" in str(URLerr.reason):
+				print("Temporary failure in name resolution")
+				return False
 			if "[Errno 110]" in str(URLerr.reason):
 				print("connection timed out")
 				return False
@@ -140,6 +143,9 @@ class RegiMon():
 
 		return open_events
 
+	def RecentlyUpdatedContacts(self):
+		return self._make_api_request("Contacts?$async=false&$filter='Profile%20last%20updated'%20ge%202017-06-23T06:00:00Z")
+
 def ConvertWADate(wa_date):
 	fixed_date = wa_date[0:22]+wa_date[23:]
 	py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
@@ -155,6 +161,7 @@ config.read('config.ini')
 print(config.items('api'))
 print(config.items('thresholds'))
 
+
 time_format_string = '%B %d, %Y at %I:%M%p'
 unpaid_cutoff = timedelta(days=config.getint('thresholds','unpaidCutOff'))
 unpaid_buffer = timedelta(hours=config.getint('thresholds', 'unpaidBuffer'))
@@ -167,6 +174,9 @@ enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
 
+recently_updated = monitor.RecentlyUpdatedContacts()
+for index,contact in enumerate(recently_updated):
+    print(index,contact['DisplayName'])
 
 # registrations = monitor.GetRegistrationsByContact(24937088)
 # for registration in registrations:
