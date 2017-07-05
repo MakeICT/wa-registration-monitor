@@ -1,50 +1,32 @@
 #!/usr/bin/python
 
 import MySQLdb
+import time
+import datetime
 
 class Database():
 	def __init__(self):
 		self.Connect()
 
 		# Drop table if it already exist using execute() method.
-		#self.NewCursor().execute("DROP TABLE IF EXISTS UNPAID_REGISTRATIONS")
+		self.NewCursor().execute("DROP TABLE IF EXISTS UNPAID_REGISTRATIONS")
+		self.NewCursor().execute("DROP TABLE IF EXISTS EVENT_CHECKINS")
+		self.NewCursor().execute("DROP TABLE IF EXISTS ACTION_LOG")
 
-		# Create table as per requirement
-		sql = """CREATE TABLE UNPAID_REGISTRATIONS (
-				 FIRST_NAME CHAR(20),
-				 LAST_NAME CHAR(20),
-				 EMAIL VARCHAR(255),
-		         USER_ID INT,
-		         REGISTRATION_ID INT,
-		         INITIAL_NAG_SENT BOOLEAN,
-		         FINAL_NAG_SENT BOOLEAN,
-		         REGISTRATION_DELETED BOOLEAN
-		         )"""
+		init_funcs = self.CreateUnpaidRegistrationsDB, self.CreateEventCheckinsDB, self.CreateActionLogDB
+
 		try:
-			self.NewCursor().execute(sql)
-		except MySQLdb.OperationalError as err:
-			if '1050' in str(err):
-				print("database already exists")
-				pass
-			else:
-				raise
+			for f in init_funcs:
+				try:
+					f()
+				except MySQLdb.OperationalError as err:
+					if '1050' in str(err):
+						print("database already exists")
+				# else:
+				# 	raise
 
-		sql = """CREATE TABLE EVENT_CHECKINS(
-				 EVENT_ID INT,
-				 VOLUNTEER_EMAIL VARCHAR(255),
-				 INITIAL_NAG_SENT BOOLEAN,
-		         FINAL_NAG_SENT BOOLEAN,
-		         )"""
-		try:
-			self.NewCursor().execute(sql)
-		except MySQLdb.OperationalError as err:
-			if '1050' in str(err):
-				print("database already exists")
-				pass
-			else:
-				raise
-
-		self.Disconnect()
+		finally:
+			self.Disconnect()
 
 	def Connect(self):
 		self.db = MySQLdb.connect('localhost', 'regimon', 'regimon', 'regimon_db');
@@ -57,6 +39,19 @@ class Database():
 		self.db.commit()
 		self.db.close()
 
+	def CreateUnpaidRegistrationsDB(self):		
+		# Create table as per requirement
+		sql = """CREATE TABLE UNPAID_REGISTRATIONS (
+				 FIRST_NAME CHAR(20),
+				 LAST_NAME CHAR(20),
+				 EMAIL VARCHAR(255),
+		         USER_ID INT,
+		         REGISTRATION_ID INT,
+		         INITIAL_NAG_SENT BOOLEAN,
+		         FINAL_NAG_SENT BOOLEAN,
+		         REGISTRATION_DELETED BOOLEAN
+		         )"""
+		self.NewCursor().execute(sql)
 
 	def AddEntry(self, first_name, last_name, email, user_id, registration_id):
 		self.Connect()
@@ -98,6 +93,60 @@ class Database():
 
 	def SetRegistrationDeleted(self, reg_id, state=True):
 		self.UpdateEntryByRegistrationID(reg_id, 'REGISTRATION_DELETED', state)
+
+	# Event Check-in database
+	def CreateEventCheckinsDB(self):
+		sql = """CREATE TABLE EVENT_CHECKINS(
+				 EVENT_ID INT,
+				 VOLUNTEER_EMAIL VARCHAR(255),
+				 INITIAL_NAG_SENT BOOLEAN,
+		         FINAL_NAG_SENT BOOLEAN
+		         )"""
+		self.NewCursor().execute(sql)
+
+	# Event Reminders Table
+	def CreateEventRemindersDB(self):
+		sql = """CREATE TABLE EVENT_REMINDERS(
+				 EVENT_ID INT,
+				 VOLUNTEER_EMAIL VARCHAR(255),
+				 LAST_EMAIL_SENT TIMESTAMP
+		         )"""
+		self.NewCursor().execute(sql) 
+	
+	# Action Log Table
+	def CreateActionLogDB(self):
+		sql = """CREATE TABLE ACTION_LOG(
+				 TIME_STAMP TIMESTAMP,
+				 EVENT_NAME VARCHAR(255),
+				 REGISTRANT_NAME VARCHAR(255),
+				 REGISTRANT_EMAIL VARCHAR(255),
+				 ACTION VARCHAR(255)
+		         )"""
+		self.NewCursor().execute(sql)
+
+	def AddLogEntry(self, event_name, registrant_name, registrant_email, action):
+		self.Connect()
+
+		ts = time.time()
+		timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
+		sql = """INSERT INTO ACTION_LOG(TIME_STAMP,
+	         EVENT_NAME, REGISTRANT_NAME, REGISTRANT_EMAIL, ACTION)
+	         VALUES ('%s', '%s', '%s', '%s', '%s')""" % (timestamp, event_name, registrant_name, registrant_email, action)
+		
+		self.NewCursor().execute(sql)
+		self.Disconnect()
+
+	def GetLog(self):
+		self.Connect()
+		sql = "SELECT * FROM ACTION_LOG"
+		cursor = self.NewCursor()
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		self.Disconnect()
+		return results
+
+
 
 # testdb = Database()
 

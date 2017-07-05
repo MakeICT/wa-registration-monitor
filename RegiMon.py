@@ -87,8 +87,7 @@ class RegiMon():
 		# 		print(event)
 		# 		print('\n')
 		# 		print(registrants)
-		if events == False:
-			return False
+
 		#events = api.execute_request('Events')
 		#print (events)
 		total_lost_fees = 0
@@ -123,6 +122,15 @@ class RegiMon():
 	def GetRegistrationsByContact(self, contact_id): 
 		registrations = self._make_api_request('/EventRegistrations?contactId=%d'%contact_id)
 		return registrations
+
+
+	def FindUpcomingClasses(self):
+		logging.debug('Finding all upcoming classes')
+		events = self._make_api_request('Events?$filter=IsUpcoming+eq+true')
+		if events == False:
+			return False
+
+		return events
 
 	def FindUpcomingClassesWithOpenSpots(self):
 		logging.debug('Searching for open spots in upcoming events')
@@ -192,15 +200,21 @@ noshow_drop = timedelta(minutes=config.getint('thresholds','noShowDrop'))
 poll_interval = config.getint('api','pollInterval')
 nag_buffer = timedelta(minutes=config.getint('thresholds','nagBuffer'))
 enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),'%m-%d-%y %z')
+reminders = len(config.get('thresholds', 'reminderDays').split(','))
+reminders_days = []
+for r in config.get('thresholds', 'reminderDays').split(','):
+	reminders_days.append(timedelta(days=int(r)))
 
 
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
 
 #monitor.GetInvoiceByID('34694085')
-log = monitor.GetLogItems()
-for entry in log:
-	print(entry)
+
+# log = monitor.GetLogItems()
+# for entry in log:
+# 	print(entry)
+
 # registrations = monitor.GetRegistrationsByContact(24937088)
 # for registration in registrations:
 #  	print ("%s : %d" % (registration['Event']['Name'], registration['Id']))
@@ -233,7 +247,8 @@ while(1):
 		toEmail = ['iceman81292@gmail.com']
 		needs_email = False
 		#new_registration = ur['Id'] not in nag_list
-		if not db.GetEntryByRegistrationID(ur['Id']):
+		db_entry = db.GetEntryByRegistrationID(ur['Id'])
+		if not db_entry:
 			new_registration = True
 		else:
 			new_registration = False
@@ -269,6 +284,9 @@ while(1):
 					registrant_first_name = split_name[1]
 					registrant_last_name = split_name[0]
 					db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
+					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+								   action="Add unpaid registration to nag database.")
+					db.SetFirstNagSent(ur['Id'])
 					needs_email = True
 
 				elif time_since_registration > unpaid_buffer:
@@ -278,6 +296,9 @@ while(1):
 							#monitor.DeleteRegistration(ur['Id'])
 							template = open(config.get('files', 'cancellationTemplate'), 'r')
 							delete_list.append(ur['Id'])
+							db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+								  		   action="Delete registration")
+							db.SetRegistrationDeleted(ur['Id'])
 							needs_email = True
 			
 				if needs_email:	
@@ -293,7 +314,11 @@ while(1):
 					subject = t.split('----')[0]
 					message = t.split('----')[1]
 
+					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+								  		   action="Send email with subject `%s`" %(subject.strip()))
 					mb.send(toEmail, subject , message)
+
+	print(db.GetLog())
 
 	##### Find events that need check-in volunteers and email event-team #####
 	events_without_checkin = monitor.FindUpcomingClassesWithNoCheckinVolunteer()
@@ -312,4 +337,19 @@ while(1):
 		mb.send(toEmail, subject , message)
 		#mb.check()
 
-	
+	##### Send Reminders to registrants in upcoming events #####
+	upcoming_events = monitor.FindUpcomingClasses()
+	for event in upcoming_events:
+		registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
+		registration_date = ConvertWADate(ur['RegistrationDate'])
+		event_start_date = ConvertWADate(ur['Event']['StartDate'])
+		time_before_class = event_start_date - datetime.now(tzlocal)
+		registration_time_before_class = event_start_date - registration_date
+		time_since_registration = datetime.now(tzlocal) - registration_date
+		#toEmail = registrantEmail
+		toEmail = ['iceman81292@gmail.com']
+		needs_email = False
+
+		for r in reminders_days:
+			if(time_before_class < r):
+				pass

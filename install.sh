@@ -1,8 +1,6 @@
 #!/bin/bash
 
-sudo apt-get install python3-dateutil 
-sudo apt-get install python3-mysqldb
-sudo apt-get install mysql-server 
+sudo apt-get install python3-dateutil python3-mysqldb mysql-server 
 
 sudo mysql
 CREATE USER 'regimon'@'localhost' IDENTIFIED BY 'regimon';
