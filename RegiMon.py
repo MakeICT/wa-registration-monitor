@@ -71,10 +71,16 @@ class RegiMon():
 			if HTTPerr.code == 110:
 				print("timeout")
 				return False
+			if HTTPerr.code == 504:
+				print("gateway time-out")
+				return False
 			else:
 				raise
 
 
+	def GetRegistrantsByEventID(self, event_id):
+		registrants = self._make_api_request('EventRegistrations?eventID='+str(event_id))
+		return registrants
 
 	def FindUnpaidRegistrants(self):
 		logging.debug('Searching for unpaid registrants in upcoming events')
@@ -318,38 +324,84 @@ while(1):
 								  		   action="Send email with subject `%s`" %(subject.strip()))
 					mb.send(toEmail, subject , message)
 
-	print(db.GetLog())
+	# for entry in db.GetLog():
+	# 	print(entry)
 
 	##### Find events that need check-in volunteers and email event-team #####
-	events_without_checkin = monitor.FindUpcomingClassesWithNoCheckinVolunteer()
-	#print(events_without_checkin)
-	for event in events_without_checkin:
-		print(event)
-		template = open(config.get('files', 'checkinRequestTemplate'), 'r')
-		template.seek(0)
-		t = template.read().format(
-									 EventName = event['Name'].strip(),
-									 EventDate = event_start_date.strftime(time_format_string),
-									 )
-		subject = t.split('----')[0]
-		message = t.split('----')[1]
+	# events_without_checkin = monitor.FindUpcomingClassesWithNoCheckinVolunteer()
+	# #print(events_without_checkin)
+	# for event in events_without_checkin:
+	# 	print(event)
+	# 	template = open(config.get('files', 'checkinRequ0estTemplate'), 'r')
+	# 	template.seek(0)
+	# 	t = template.read().format(
+	# 								 EventName = event['Name'].strip(),
+	# 								 EventDate = event_start_date.strftime(time_format_string),
+	# 								 )
+	# 	subject = t.split('----')[0]
+	# 	message = t.split('----')[1]
 
-		mb.send(toEmail, subject , message)
-		#mb.check()
+	# 	mb.send(toEmail, subject , message)
+	# 	#mb.check()
 
 	##### Send Reminders to registrants in upcoming events #####
 	upcoming_events = monitor.FindUpcomingClasses()
 	for event in upcoming_events:
-		registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
-		registration_date = ConvertWADate(ur['RegistrationDate'])
-		event_start_date = ConvertWADate(ur['Event']['StartDate'])
-		time_before_class = event_start_date - datetime.now(tzlocal)
-		registration_time_before_class = event_start_date - registration_date
-		time_since_registration = datetime.now(tzlocal) - registration_date
 		#toEmail = registrantEmail
-		toEmail = ['iceman81292@gmail.com']
-		needs_email = False
+		event_start_date = ConvertWADate(event['StartDate'])
+		time_before_class = event_start_date - datetime.now(tzlocal)
 
+		toEmail = ['iceman81292@gmail.com']
+
+		if not db.GetEntryByEventID(event['Id']):
+			print("event not in database")
+			db.AddEventToDB(event['Id'])
+
+		index = 1
 		for r in reminders_days:
-			if(time_before_class < r):
-				pass
+			needs_email = False
+			if time_before_class < r:
+				if index == 1:
+					if not db.GetFirstEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
+						print("send first event reminder email for " + event['Name'])
+						db.SetFirstEventNagSent(event['Id'])
+						template = open(config.get('files', 'eventReminder'), 'r')
+						needs_email = True
+				if index == 2:
+					if not db.GetSecondEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
+						print("send second event reminder email for " + event['Name'])
+						db.SetSecondEventNagSent(event['Id'])
+						template = open(config.get('files', 'eventReminder'), 'r')
+						needs_email = True
+				if index == 3:
+					if not db.GetThirdEventNagSent(event['Id']):
+						print("send third event reminder email for " + event['Name'])
+						db.SetThirdEventNagSent(event['Id'])
+						template = open(config.get('files', 'eventReminder'), 'r')
+						needs_email = True
+			index+=1
+
+			if needs_email:	
+				registrants = monitor.GetRegistrantsByEventID(event['Id'])
+				for r in registrants:
+					registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
+					registration_date = ConvertWADate(r['RegistrationDate'])
+					registration_time_before_class = event_start_date - registration_date
+					time_since_registration = datetime.now(tzlocal) - registration_date
+					registrant_first_name = r['Contact']['Name'].split(',')[1]
+					registrant_last_name = r['Contact']['Name'].split(',')[0]
+					template.seek(0)
+					t = template.read().format(
+											     FirstName = registrant_first_name, 
+												 EventName = event['Name'].strip(),
+												 EventDate = event_start_date.strftime(time_format_string),
+												 UnpaidDropDate = drop_date.strftime(time_format_string),
+												 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
+												 CancellationWindow = unpaid_cutoff.days
+												 )
+					subject = t.split('----')[0]
+					message = t.split('----')[1]
+
+					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+								  		   action="Send email with subject `%s`" %(subject.strip()))
+					mb.send(toEmail, subject , message)
