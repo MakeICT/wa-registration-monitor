@@ -6,6 +6,7 @@ class MailBot():
 		self.email = email
 		self.password = password
 		self.server = None
+		self.display_name = None
 
 	def connect(self):
 		self.server = smtplib.SMTP_SSL()
@@ -21,9 +22,16 @@ class MailBot():
 		except smtplib.SMTPServerDisconnected:
 			pass
 
+	def setDisplayName(self, name):
+		self.display_name = name
+
 	def send(self, to_addrs, subj, body):
+		if not self.display_name:
+			from_field = self.email
+		else:
+			from_field = '"%s" <%s>' % (self.display_name, self.email)
 		msg = "\r\n".join([
-			"From: " + self.email,
+			"From: " + from_field,
 			"To: " + ",".join(to_addrs),
 			"Subject: " + subj,
 			"",

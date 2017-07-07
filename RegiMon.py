@@ -214,6 +214,7 @@ for r in config.get('thresholds', 'reminderDays').split(','):
 
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
+mb.setDisplayName(config.get('email', 'displayName'))
 
 #monitor.GetInvoiceByID('34694085')
 
@@ -354,8 +355,10 @@ while(1):
 		toEmail = ['iceman81292@gmail.com']
 
 		if not db.GetEntryByEventID(event['Id']):
-			print("event not in database")
+			print("event '%s' not in database" % event['Name'].strip())
 			db.AddEventToDB(event['Id'])
+			db.AddLogEntry(ur['Event']['Name'].strip(), None, None,
+			  		   action="Add event `%s` to database" %(event['Name'].strip()))
 
 		index = 1
 		for r in reminders_days:
@@ -363,13 +366,13 @@ while(1):
 			if time_before_class < r:
 				if index == 1:
 					if not db.GetFirstEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
-						print("send first event reminder email for " + event['Name'])
+						print("send first event reminder email for " + event['Name'].strip())
 						db.SetFirstEventNagSent(event['Id'])
 						template = open(config.get('files', 'eventReminder'), 'r')
 						needs_email = True
 				if index == 2:
 					if not db.GetSecondEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
-						print("send second event reminder email for " + event['Name'])
+						print("send second event reminder email for " + event['Name'].strip())
 						db.SetSecondEventNagSent(event['Id'])
 						template = open(config.get('files', 'eventReminder'), 'r')
 						needs_email = True
