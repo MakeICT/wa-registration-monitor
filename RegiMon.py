@@ -26,57 +26,24 @@ class RegiMon():
 		try:
 			self.api.authenticate_with_apikey(self.options["API_key"])
 			return True
-		except urllib.error.URLError as URLerr:
-			print("NO INTERWEBZ!?")
-			#print(str(URLerr.reason))
-			if "[Errno -2]" in str(URLerr.reason):
-				print("name or service unknown")
-				return False
-			if "[Errno 110]" in str(URLerr.reason):
-				print("connection timed out")
-				return False
-			else:
-				raise
-		except urllib.error.HTTPError as HTTPError:
-			if err.code == 401:
-				print("API key not valid")
-				return False
-			if HTTPerr.code == 110:
-				print("timeout")
-				return False
-			else:
-				raise
+		except HTTPError as e:
+		    print('The server couldn\'t fulfill the request.')
+		    print('Error code: ', e.code)
+		except URLError as e:
+		    print('We failed to reach a server.')
+		    print('Reason: ', e.reason)
+		return False
 
 	def _make_api_request(self, request_string, api_request_object=None, method=None):
 		try:	
 			return self.api.execute_request(request_string, api_request_object, method)
-		except urllib.error.URLError as URLerr:
-			print("NO INTERWEBZ!?")
-			#print(str(URLerr.reason))
-			if "[Errno -2]" in str(URLerr.reason):
-				print("name or service unknown")
-				return False
-			if "[Errno 110]" in str(URLerr.reason):
-				print("connection timed out")
-				return False
-			if "[Errno 22]" in str(URLerr.reason):
-				print("Somebody poisoned the water hole!")
-				return False
-			else:
-				raise
-		except urllib.error.HTTPError as HTTPerr:
-			if HTTPerr.code == 429:
-				print("too many requests")
-				return False
-			if HTTPerr.code == 110:
-				print("timeout")
-				return False
-			if HTTPerr.code == 504:
-				print("gateway time-out")
-				return False
-			else:
-				raise
-
+		except HTTPError as e:
+		    print('The server couldn\'t fulfill the request.')
+		    print('Error code: ', e.code)
+		except URLError as e:
+		    print('We failed to reach a server.')
+		    print('Reason: ', e.reason)
+		return False
 
 	def GetRegistrantsByEventID(self, event_id):
 		registrants = self._make_api_request('EventRegistrations?eventID='+str(event_id))
@@ -397,10 +364,7 @@ while(1):
 											     FirstName = registrant_first_name, 
 												 EventName = event['Name'].strip(),
 												 EventDate = event_start_date.strftime(time_format_string),
-												 ReminderNumber = index,
-												 UnpaidDropDate = drop_date.strftime(time_format_string),
-												 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
-												 CancellationWindow = unpaid_cutoff.days
+												 ReminderNumber = index
 												 )
 					subject = t.split('----')[0]
 					message = t.split('----')[1]
