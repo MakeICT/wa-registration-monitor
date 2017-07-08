@@ -1,11 +1,11 @@
 #!/bin/bash
 
-sudo apt-get install python3-dateutil python3-mysqldb mysql-server 
+#sudo apt-get install python3-dateutil python3-mysqldb mysql-server 
 
-sudo mysql
-CREATE USER 'regimon'@'localhost' IDENTIFIED BY 'regimon';
-CREATE DATABASE regimon_db;
-GRANT ALL PRIVILEGES ON regimon_db . * TO 'regimon'@'localhost';
+#sudo mysql
+#CREATE USER 'regimon'@'localhost' IDENTIFIED BY 'regimon';
+#CREATE DATABASE regimon_db;
+#GRANT ALL PRIVILEGES ON regimon_db . * TO 'regimon'@'localhost';
 
 #############################
 # Enable service

@@ -382,7 +382,6 @@ while(1):
 						db.SetThirdEventNagSent(event['Id'])
 						template = open(config.get('files', 'eventReminder'), 'r')
 						needs_email = True
-			index+=1
 
 			if needs_email:	
 				registrants = monitor.GetRegistrantsByEventID(event['Id'])
@@ -398,6 +397,7 @@ while(1):
 											     FirstName = registrant_first_name, 
 												 EventName = event['Name'].strip(),
 												 EventDate = event_start_date.strftime(time_format_string),
+												 ReminderNumber = index,
 												 UnpaidDropDate = drop_date.strftime(time_format_string),
 												 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
 												 CancellationWindow = unpaid_cutoff.days
@@ -408,3 +408,5 @@ while(1):
 					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 								  		   action="Send email with subject `%s`" %(subject.strip()))
 					mb.send(toEmail, subject , message)
+
+			index+=1

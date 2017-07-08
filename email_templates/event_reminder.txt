@@ -1,4 +1,4 @@
-Event Reminder - "{EventName}" on {EventDate}
+Event Reminder {ReminderNumber} - "{EventName}" on {EventDate}
 ----
 Hello {FirstName},
 
