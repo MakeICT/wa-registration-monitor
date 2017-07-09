@@ -26,10 +26,10 @@ class RegiMon():
 		try:
 			self.api.authenticate_with_apikey(self.options["API_key"])
 			return True
-		except HTTPError as e:
+		except urllib.error.HTTPError as e:
 		    print('The server couldn\'t fulfill the request.')
 		    print('Error code: ', e.code)
-		except URLError as e:
+		except urllib.error.URLError as e:
 		    print('We failed to reach a server.')
 		    print('Reason: ', e.reason)
 		return False
@@ -37,10 +37,10 @@ class RegiMon():
 	def _make_api_request(self, request_string, api_request_object=None, method=None):
 		try:	
 			return self.api.execute_request(request_string, api_request_object, method)
-		except HTTPError as e:
+		except urllib.error.HTTPError as e:
 		    print('The server couldn\'t fulfill the request.')
 		    print('Error code: ', e.code)
-		except URLError as e:
+		except urllib.error.URLError as e:
 		    print('We failed to reach a server.')
 		    print('Reason: ', e.reason)
 		return False
@@ -142,7 +142,6 @@ class RegiMon():
 
 		return no_checkin_events
 
-
 	def GetInvoiceByID(self, invoice_id):
 		invoice = self._make_api_request('Invoices/%s' % (invoice_id))
 		return invoice
@@ -177,7 +176,6 @@ reminders = len(config.get('thresholds', 'reminderDays').split(','))
 reminders_days = []
 for r in config.get('thresholds', 'reminderDays').split(','):
 	reminders_days.append(timedelta(days=int(r)))
-
 
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
@@ -314,63 +312,64 @@ while(1):
 
 	##### Send Reminders to registrants in upcoming events #####
 	upcoming_events = monitor.FindUpcomingClasses()
-	for event in upcoming_events:
-		#toEmail = registrantEmail
-		event_start_date = ConvertWADate(event['StartDate'])
-		time_before_class = event_start_date - datetime.now(tzlocal)
+	if upcoming_events:
+		for event in upcoming_events:
+			#toEmail = registrantEmail
+			event_start_date = ConvertWADate(event['StartDate'])
+			time_before_class = event_start_date - datetime.now(tzlocal)
 
-		toEmail = ['iceman81292@gmail.com']
+			toEmail = ['iceman81292@gmail.com']
 
-		if not db.GetEntryByEventID(event['Id']):
-			print("event '%s' not in database" % event['Name'].strip())
-			db.AddEventToDB(event['Id'])
-			db.AddLogEntry(ur['Event']['Name'].strip(), None, None,
-			  		   action="Add event `%s` to database" %(event['Name'].strip()))
+			if not db.GetEntryByEventID(event['Id']):
+				print("event '%s' not in database" % event['Name'].strip())
+				db.AddEventToDB(event['Id'])
+				db.AddLogEntry(ur['Event']['Name'].strip(), None, None,
+				  		   action="Add event `%s` to database" %(event['Name'].strip()))
 
-		index = 1
-		for r in reminders_days:
-			needs_email = False
-			if time_before_class < r:
-				if index == 1:
-					if not db.GetFirstEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
-						print("send first event reminder email for " + event['Name'].strip())
-						db.SetFirstEventNagSent(event['Id'])
-						template = open(config.get('files', 'eventReminder'), 'r')
-						needs_email = True
-				if index == 2:
-					if not db.GetSecondEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
-						print("send second event reminder email for " + event['Name'].strip())
-						db.SetSecondEventNagSent(event['Id'])
-						template = open(config.get('files', 'eventReminder'), 'r')
-						needs_email = True
-				if index == 3:
-					if not db.GetThirdEventNagSent(event['Id']):
-						print("send third event reminder email for " + event['Name'])
-						db.SetThirdEventNagSent(event['Id'])
-						template = open(config.get('files', 'eventReminder'), 'r')
-						needs_email = True
+			index = 1
+			for r in reminders_days:
+				needs_email = False
+				if time_before_class < r:
+					if index == 1:
+						if not db.GetFirstEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
+							print("send first event reminder email for " + event['Name'].strip())
+							db.SetFirstEventNagSent(event['Id'])
+							template = open(config.get('files', 'eventReminder'), 'r')
+							needs_email = True
+					if index == 2:
+						if not db.GetSecondEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
+							print("send second event reminder email for " + event['Name'].strip())
+							db.SetSecondEventNagSent(event['Id'])
+							template = open(config.get('files', 'eventReminder'), 'r')
+							needs_email = True
+					if index == 3:
+						if not db.GetThirdEventNagSent(event['Id']):
+							print("send third event reminder email for " + event['Name'])
+							db.SetThirdEventNagSent(event['Id'])
+							template = open(config.get('files', 'eventReminder'), 'r')
+							needs_email = True
 
-			if needs_email:	
-				registrants = monitor.GetRegistrantsByEventID(event['Id'])
-				for r in registrants:
-					registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
-					registration_date = ConvertWADate(r['RegistrationDate'])
-					registration_time_before_class = event_start_date - registration_date
-					time_since_registration = datetime.now(tzlocal) - registration_date
-					registrant_first_name = r['Contact']['Name'].split(',')[1]
-					registrant_last_name = r['Contact']['Name'].split(',')[0]
-					template.seek(0)
-					t = template.read().format(
-											     FirstName = registrant_first_name, 
-												 EventName = event['Name'].strip(),
-												 EventDate = event_start_date.strftime(time_format_string),
-												 ReminderNumber = index
-												 )
-					subject = t.split('----')[0]
-					message = t.split('----')[1]
+				if needs_email:	
+					registrants = monitor.GetRegistrantsByEventID(event['Id'])
+					for r in registrants:
+						registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
+						registration_date = ConvertWADate(r['RegistrationDate'])
+						registration_time_before_class = event_start_date - registration_date
+						time_since_registration = datetime.now(tzlocal) - registration_date
+						registrant_first_name = r['Contact']['Name'].split(',')[1]
+						registrant_last_name = r['Contact']['Name'].split(',')[0]
+						template.seek(0)
+						t = template.read().format(
+												     FirstName = registrant_first_name, 
+													 EventName = event['Name'].strip(),
+													 EventDate = event_start_date.strftime(time_format_string),
+													 ReminderNumber = index
+													 )
+						subject = t.split('----')[0]
+						message = t.split('----')[1]
 
-					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-								  		   action="Send email with subject `%s`" %(subject.strip()))
-					mb.send(toEmail, subject , message)
+						db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+									  		   action="Send email with subject `%s`" %(subject.strip()))
+						mb.send(toEmail, subject , message)
 
-			index+=1
+				index+=1
