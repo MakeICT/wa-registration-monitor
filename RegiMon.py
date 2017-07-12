@@ -197,7 +197,7 @@ mb.setAdminAddress(config.get('email', 'adminAddress'))
 #open_events = monitor.FindUpcomingClassesWithOpenSpots()
 
 #nag_list = []
-delete_list = []
+#delete_list = []
 api_call_failures = 0
 while(1):
 	time.sleep(poll_interval)
@@ -225,7 +225,8 @@ while(1):
 			new_registration = True
 		else:
 			new_registration = False
-		deleted = ur['Id'] in delete_list
+		#deleted = ur['Id'] in delete_list
+
 
 		if new_registration:
 			print("Registration from %s ago."%(time_since_registration))
@@ -238,58 +239,58 @@ while(1):
 				   	time_before_class)
 				   #	ur['Id'])
 		 		 )
-		if not deleted:
-			if(time_since_registration > nag_buffer):
-				if new_registration:
-					print ("Sending nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
-					if(registration_date < enforcement_date):
-						template = open(config.get('files', 'pre-warningTemplate'), 'r')
-					else:
-						template = open(config.get('files', 'warningTemplate'), 'r')
-					if registration_time_before_class > (unpaid_cutoff + unpaid_buffer):
-						drop_date = event_start_date - unpaid_cutoff
-					elif registration_time_before_class > unpaid_buffer:
-						drop_date = registration_date + unpaid_buffer
-					else:
-						drop_date = event_start_date - noshow_drop
-					#nag_list.append(ur['Id'])
-					split_name = ur['Contact']['Name'].split(',')
-					registrant_first_name = split_name[1]
-					registrant_last_name = split_name[0]
-					db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
-					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-								   action="Add unpaid registration to nag database.")
-					db.SetFirstNagSent(ur['Id'])
-					needs_email = True
+		#if not deleted:
+		if(time_since_registration > nag_buffer):
+			if new_registration:
+				print ("Sending nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
+				if(registration_date < enforcement_date):
+					template = open(config.get('files', 'pre-warningTemplate'), 'r')
+				else:
+					template = open(config.get('files', 'warningTemplate'), 'r')
+				if registration_time_before_class > (unpaid_cutoff + unpaid_buffer):
+					drop_date = event_start_date - unpaid_cutoff
+				elif registration_time_before_class > unpaid_buffer:
+					drop_date = registration_date + unpaid_buffer
+				else:
+					drop_date = event_start_date - noshow_drop
+				#nag_list.append(ur['Id'])
+				split_name = ur['Contact']['Name'].split(',')
+				registrant_first_name = split_name[1]
+				registrant_last_name = split_name[0]
+				db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
+				db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+							   action="Add unpaid registration to nag database.")
+				db.SetFirstNagSent(ur['Id'])
+				needs_email = True
 
-				elif time_since_registration > unpaid_buffer:
-					if registration_time_before_class < unpaid_cutoff:
-						if(registration_date > enforcement_date):
-							print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
-							#monitor.DeleteRegistration(ur['Id'])
-							template = open(config.get('files', 'cancellationTemplate'), 'r')
-							delete_list.append(ur['Id'])
-							db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-								  		   action="Delete registration")
-							db.SetRegistrationDeleted(ur['Id'])
-							needs_email = True
-			
-				if needs_email:	
-					template.seek(0)
-					t = template.read().format(
-											     FirstName = ur['Contact']['Name'].split(',')[1], 
-												 EventName = ur['Event']['Name'].strip(),
-												 EventDate = event_start_date.strftime(time_format_string),
-												 UnpaidDropDate = drop_date.strftime(time_format_string),
-												 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
-												 CancellationWindow = unpaid_cutoff.days
-												 )
-					subject = t.split('----')[0]
-					message = t.split('----')[1]
+			elif time_since_registration > unpaid_buffer:
+				if registration_time_before_class < unpaid_cutoff:
+					if(registration_date > enforcement_date):
+						print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
+						monitor.DeleteRegistration(ur['Id'])
+						template = open(config.get('files', 'cancellationTemplate'), 'r')
+						#delete_list.append(ur['Id'])
+						db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+							  		   action="Delete registration")
+						db.SetRegistrationDeleted(ur['Id'])
+						needs_email = True
+		
+			if needs_email:	
+				template.seek(0)
+				t = template.read().format(
+										     FirstName = ur['Contact']['Name'].split(',')[1], 
+											 EventName = ur['Event']['Name'].strip(),
+											 EventDate = event_start_date.strftime(time_format_string),
+											 UnpaidDropDate = drop_date.strftime(time_format_string),
+											 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
+											 CancellationWindow = unpaid_cutoff.days
+											 )
+				subject = t.split('----')[0]
+				message = t.split('----')[1]
 
-					db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-								  		   action="Send email with subject `%s`" %(subject.strip()))
-					mb.send(toEmail, subject , message)
+				db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+							  		   action="Send email with subject `%s`" %(subject.strip()))
+				mb.send(toEmail, subject , message)
 
 	# for entry in db.GetLog():
 	# 	print(entry)
