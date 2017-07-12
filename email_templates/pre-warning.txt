@@ -5,7 +5,7 @@ Hello {FirstName},
 
 It appears that you have an unpaid registration for "{EventName}" on {EventDate} at MakeICT.  
 
-Due to the frequency of unpaid no-shows for our classes, we have decided to implement a new policy regarding class payments.  Starting on {EnforcementDate}, all new registrations that are unpaid within {CancellationWindow} days of an event will be cancelled automatically.  Online payments are the easiest and fastest for us to process, but cash and check will still be accepted. 
+Due to the frequency of unpaid no-shows for our classes, we have decided to modify how we handle class payments.  Starting on {EnforcementDate}, all new registrations that are unpaid within {CancellationWindow} days of an event will be cancelled automatically.  Online payments are the easiest and fastest for us to process, but cash and check will still be accepted. 
 
 Payment options
 	1. Through PayPal at members.makeict.org/Sys/Profile/Finances

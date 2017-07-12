@@ -180,6 +180,7 @@ for r in config.get('thresholds', 'reminderDays').split(','):
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
 mb.setDisplayName(config.get('email', 'displayName'))
+mb.setAdminAddress(config.get('email', 'adminAddress'))
 
 #monitor.GetInvoiceByID('34694085')
 
@@ -215,8 +216,8 @@ while(1):
 		time_before_class = event_start_date - datetime.now(tzlocal)
 		registration_time_before_class = event_start_date - registration_date
 		time_since_registration = datetime.now(tzlocal) - registration_date
-		#toEmail = registrantEmail
-		toEmail = ['iceman81292@gmail.com']
+		toEmail = registrantEmail
+		#toEmail = ['iceman81292@gmail.com']
 		needs_email = False
 		#new_registration = ur['Id'] not in nag_list
 		db_entry = db.GetEntryByRegistrationID(ur['Id'])
@@ -314,11 +315,8 @@ while(1):
 	upcoming_events = monitor.FindUpcomingClasses()
 	if upcoming_events:
 		for event in upcoming_events:
-			#toEmail = registrantEmail
 			event_start_date = ConvertWADate(event['StartDate'])
 			time_before_class = event_start_date - datetime.now(tzlocal)
-
-			toEmail = ['iceman81292@gmail.com']
 
 			if not db.GetEntryByEventID(event['Id']):
 				print("event '%s' not in database" % event['Name'].strip())
@@ -358,6 +356,11 @@ while(1):
 						time_since_registration = datetime.now(tzlocal) - registration_date
 						registrant_first_name = r['Contact']['Name'].split(',')[1]
 						registrant_last_name = r['Contact']['Name'].split(',')[0]
+
+						toEmail = registrantEmail
+						#toEmail = ['iceman81292@gmail.com']
+
+
 						template.seek(0)
 						t = template.read().format(
 												     FirstName = registrant_first_name, 

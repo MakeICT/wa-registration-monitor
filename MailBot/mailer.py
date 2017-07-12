@@ -7,6 +7,7 @@ class MailBot():
 		self.password = password
 		self.server = None
 		self.display_name = None
+		self.admin_address = None
 
 	def connect(self):
 		self.server = smtplib.SMTP_SSL()
@@ -24,6 +25,9 @@ class MailBot():
 
 	def setDisplayName(self, name):
 		self.display_name = name
+
+	def setAdminAddress(self, addr):
+		self.admin_address = addr
 
 	def send(self, to_addrs, subj, body):
 		if not self.display_name:
@@ -45,6 +49,8 @@ class MailBot():
 			#print("\n===server timeout====\n")
 			self.disconnect()
 			self.connect()
+			if self.admin_address:
+				to_addrs.append(self.admin_address)
 			self.server.sendmail(self.email, to_addrs, msg)
 
 	def check(self):
