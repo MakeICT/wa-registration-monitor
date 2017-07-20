@@ -1,4 +1,4 @@
-r"""
+"""
 Adapted from: https://github.com/WildApricot/ApiSamples/blob/master/python/WaApi.py
 """
 

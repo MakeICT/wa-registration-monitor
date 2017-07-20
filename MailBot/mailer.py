@@ -44,13 +44,13 @@ class MailBot():
 		if self.server == None:
 			self.connect()
 		try:
+			if self.admin_address:
+				to_addrs.append(self.admin_address)
 			self.server.sendmail(self.email, to_addrs, msg)
 		except smtplib.SMTPSenderRefused:
 			#print("\n===server timeout====\n")
 			self.disconnect()
 			self.connect()
-			if self.admin_address:
-				to_addrs.append(self.admin_address)
 			self.server.sendmail(self.email, to_addrs, msg)
 
 	def check(self):
