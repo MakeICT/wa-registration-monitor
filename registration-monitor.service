@@ -3,8 +3,8 @@
 Description=WildApricot Registration Monitor
 
 [Service]
-ExecStart=/usr/bin/python3 /storage/Projects/MakeICT/Registration-Monitor/RegiMon.py
-WorkingDirectory=/storage/Projects/MakeICT/Registration-Monitor
+ExecStart=/usr/bin/python3 /home/christian/Registration-Monitor/RegiMon.py
+WorkingDirectory=/home/christian/Registration-Monitor
 Restart=always
 [Install]
 WantedBy=multi-user.target

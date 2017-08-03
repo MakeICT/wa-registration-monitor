@@ -18,7 +18,7 @@ class RegiMon():
 	def __init__(self, api_key):		
 		self.options = {"API_key":api_key}
 		while(not self.ConnectAPI()):
-			pass
+			time.sleep(5)
 
 	def ConnectAPI(self):
 		logging.debug('Connecting to API')
@@ -322,7 +322,7 @@ while(1):
 			if not db.GetEntryByEventID(event['Id']):
 				print("event '%s' not in database" % event['Name'].strip())
 				db.AddEventToDB(event['Id'])
-				db.AddLogEntry(ur['Event']['Name'].strip(), None, None,
+				db.AddLogEntry(event['Name'].strip(), None, None,
 				  		   action="Add event `%s` to database" %(event['Name'].strip()))
 
 			index = 1
@@ -372,7 +372,7 @@ while(1):
 						subject = t.split('----')[0]
 						message = t.split('----')[1]
 
-						db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+						db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 									  		   action="Send email with subject `%s`" %(subject.strip()))
 						mb.send(toEmail, subject , message)
 
