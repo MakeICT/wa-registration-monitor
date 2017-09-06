@@ -18,7 +18,7 @@ class RegiMon():
 	def __init__(self, api_key):		
 		self.options = {"API_key":api_key}
 		while(not self.ConnectAPI()):
-			pass
+			time.sleep(5)
 
 	def ConnectAPI(self):
 		logging.debug('Connecting to API')
@@ -448,5 +448,3 @@ while(1):
 		exit()
 
 
-
-	
