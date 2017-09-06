@@ -84,6 +84,21 @@ class RegiMon():
 
 		return unpaid_registrants
 
+	def CheckPendingPayment(self, registration):
+		for field in registration["RegistrationFields"]:
+			if field["FieldName"] == "StorageBinNumber":
+				if field["Value"] == "PendingPayment":
+					return True
+		return False
+
+	def MarkPendingPayment(self, registration_id, registration):
+		for field in registration["RegistrationFields"]:
+			if field["FieldName"] == "StorageBinNumber":
+				print("Found Last Name!")
+				field["Value"] = "PendingPayment"
+
+		response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), registration, method="PUT")
+
 	def DeleteRegistration(self, registration_id):
 		try:
 			response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), method="DELETE")
@@ -150,12 +165,205 @@ class RegiMon():
 		log = self._make_api_request("AuditLogItems/?StartDate=2017-04-25&EndDate=2017-04-27")
 		return log
 
-def ConvertWADate(wa_date):
-	fixed_date = wa_date[0:22]+wa_date[23:]
-	py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
-	return py_date
+	def ConvertWADate(self, wa_date):
+		fixed_date = wa_date[0:22]+wa_date[23:]
+		py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
+		return py_date
+
+	def SendEmail(self, to_address, template, replacements):
+		template.seek(0)
+		t = template.read().format(**replacements)
+		subject = t.split('----')[0]
+		message = t.split('----')[1]
+		mb.send(to_address, subject , message)
+		# db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+		# 	  		   action="Send email with subject `%s`" %(subject.strip()))
+
+	def ProcessUnpaidRegistrants(self, events):
+			unpaid_registrants = []
+			for event in events:
+				if event["PendingRegistrationsCount"] > 0:
+					registrants = self._make_api_request('EventRegistrations?eventID='+str(event['Id']))
+					if registrants == False:
+						return False
+					#print(event)
+					#print(event["Name"].strip() + "(" + event["StartDate"] + ")" + ": " + str(event["PendingRegistrationsCount"]))
+					for registrant in registrants:
+						#print(registrant['PaidSum'])
+						if registrant['PaidSum'] != registrant['RegistrationFee']:
+							unpaid_registrants.append(registrant)
+
+							#print(registrant['RegistrationFields'])
+							#print (registrant)
+
+			#print ("lost fees: " + str(total_lost_fees))
+
+			#return unpaid_registrants
+
+			for ur in unpaid_registrants:
+				registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
+				registration_date = self.ConvertWADate(ur['RegistrationDate'])
+				event_start_date = self.ConvertWADate(ur['Event']['StartDate'])
+				time_before_class = event_start_date - datetime.now(tzlocal)
+				registration_time_before_class = event_start_date - registration_date
+				time_since_registration = datetime.now(tzlocal) - registration_date
+				split_name = ur['Contact']['Name'].split(',')
+				registrant_first_name = split_name[1].strip()
+				registrant_last_name = split_name[0].strip()
+
+				#TEST
+				# print(registrant_first_name)
+				# if(registrant_first_name.strip()=='Testy' or registrant_last_name=='Testy'):
+				# 	print("Found Test User!")
+				# 	self.MarkPendingPayment(ur['Id'], ur)
+
+				if registration_time_before_class > (unpaid_cutoff + unpaid_buffer):
+					drop_date = event_start_date - unpaid_cutoff
+				elif registration_time_before_class > unpaid_buffer:
+					drop_date = registration_date + unpaid_buffer
+				else:
+					drop_date = event_start_date - noshow_drop
+				toEmail = registrantEmail
+				#toEmail = ['iceman81292@gmail.com']
+				needs_email = False
+				#new_registration = ur['Id'] not in nag_list
+				db_entry = db.GetEntryByRegistrationID(ur['Id'])
+				if not db_entry:
+					new_registration = True
+				else:
+					new_registration = False
+				#deleted = ur['Id'] in delete_list
 
 
+				# if new_registration:
+				# 	print("Registration from %s ago."%(time_since_registration))
+				# 	print('    %s : $%d : %s : %s : %s : %s\n' 
+				# 		   %(ur['Contact']['Name'],
+				# 		   	ur['RegistrationFee'],
+				# 		   	registrantEmail,
+				# 		   	ur['RegistrationDate'],
+				# 		   	ur['Event']['Name'].strip(),
+				# 		   	time_before_class)
+				# 		   #	ur['Id'])
+				#  		 )
+				#if not deleted:
+				if not self.CheckPendingPayment(ur):
+					if(time_since_registration > nag_buffer):
+						if new_registration:
+							print ("Sending nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
+							if(registration_date < enforcement_date):
+								template = open(config.get('files', 'pre-warningTemplate'), 'r')
+							else:
+								template = open(config.get('files', 'warningTemplate'), 'r')
+							#nag_list.append(ur['Id'])
+							db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
+							db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+										   action="Add unpaid registration to nag database.")
+							db.SetFirstNagSent(ur['Id'])
+							needs_email = True
+
+						elif time_since_registration > unpaid_buffer:
+							if time_before_class < unpaid_cutoff:
+								if(registration_date > enforcement_date):
+									print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
+									monitor.DeleteRegistration(ur['Id'])
+									template = open(config.get('files', 'cancellationTemplate'), 'r')
+									#delete_list.append(ur['Id'])
+									db.AddLogEntry(ur['Event']['Name'].strip(), ur['Contact']['Name'], registrantEmail[0],
+										  		   action="Delete registration")
+									db.SetRegistrationDeleted(ur['Id'])
+									needs_email = True
+					
+						if needs_email:	
+							template.seek(0)
+							t = template.read().format(
+													     FirstName = ur['Contact']['Name'].split(',')[1], 
+														 EventName = ur['Event']['Name'].strip(),
+														 EventDate = event_start_date.strftime(time_format_string),
+														 UnpaidDropDate = drop_date.strftime(time_format_string),
+														 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
+														 CancellationWindow = unpaid_cutoff.days
+														 )
+							subject = t.split('----')[0]
+							message = t.split('----')[1]
+
+							db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+										  		   action="Send email with subject `%s`" %(subject.strip()))
+							mb.send(toEmail, subject , message)
+
+	def SendEventReminders(self, events):
+		if events:
+			for event in events:
+				event_start_date = self.ConvertWADate(event['StartDate'])
+				time_before_class = event_start_date - datetime.now(tzlocal)
+
+				if not db.GetEntryByEventID(event['Id']):
+					print("event '%s' not in database" % event['Name'].strip())
+					db.AddEventToDB(event['Id'])
+					db.AddLogEntry(event['Name'].strip(), None, None,
+					  		   action="Add event `%s` to database" %(event['Name'].strip()))
+
+				index = 1
+				for r in reminders_days:
+					needs_email = False
+					if time_before_class < r:
+						if index == 1:
+							if not db.GetFirstEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
+								print("send first event reminder email for " + event['Name'].strip())
+								db.SetFirstEventNagSent(event['Id'])
+								template = open(config.get('files', 'eventReminder'), 'r')
+								needs_email = True
+						if index == 2:
+							if not db.GetSecondEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
+								print("send second event reminder email for " + event['Name'].strip())
+								db.SetSecondEventNagSent(event['Id'])
+								template = open(config.get('files', 'eventReminder'), 'r')
+								needs_email = True
+						if index == 3:
+							if not db.GetThirdEventNagSent(event['Id']):
+								print("send third event reminder email for " + event['Name'])
+								db.SetThirdEventNagSent(event['Id'])
+								template = open(config.get('files', 'eventReminder'), 'r')
+								needs_email = True
+
+					if needs_email:	
+						registrants = monitor.GetRegistrantsByEventID(event['Id'])
+						for r in registrants:
+							registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
+							registration_date = self.ConvertWADate(r['RegistrationDate'])
+							registration_time_before_class = event_start_date - registration_date
+							time_since_registration = datetime.now(tzlocal) - registration_date
+							registrant_first_name = r['Contact']['Name'].split(',')[1]
+							registrant_last_name = r['Contact']['Name'].split(',')[0]
+
+							
+							toEmail = registrantEmail
+							replacements =  {'FirstName':registrant_first_name, 
+											 'EventName':event['Name'].strip(),
+											 'EventDate':event_start_date.strftime(time_format_string),
+											 'ReminderNumber':index}
+							self.SendEmail(toEmail, template, replacements)
+							db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+								  		   action="Send event reminder email")
+							#toEmail = ['iceman81292@gmail.com']
+
+
+							# template.seek(0)
+							# t = template.read().format(
+							# 						     FirstName = registrant_first_name, 
+							# 							 EventName = event['Name'].strip(),
+							# 							 EventDate = event_start_date.strftime(time_format_string),
+							# 							 ReminderNumber = index
+							# 							 )
+							# subject = t.split('----')[0]
+							# message = t.split('----')[1]
+
+							# mb.send(toEmail, subject , message)
+
+					index+=1
+
+
+script_start_time = datetime.now()
 db = Database()
 current_db = db.GetAll()
 for entry in current_db:
@@ -203,94 +411,8 @@ while(1):
 	time.sleep(poll_interval)
 
 	##### Find and email unpaid registrants #####
-	unpaid_registrants = monitor.FindUnpaidRegistrants()
-	if unpaid_registrants == False:
-		api_call_failures += 1
-		print("API call Failures: %d" %(api_call_failures))
-		continue
-
-	for ur in unpaid_registrants:
-		registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
-		registration_date = ConvertWADate(ur['RegistrationDate'])
-		event_start_date = ConvertWADate(ur['Event']['StartDate'])
-		time_before_class = event_start_date - datetime.now(tzlocal)
-		registration_time_before_class = event_start_date - registration_date
-		time_since_registration = datetime.now(tzlocal) - registration_date
-		toEmail = registrantEmail
-		#toEmail = ['iceman81292@gmail.com']
-		needs_email = False
-		#new_registration = ur['Id'] not in nag_list
-		db_entry = db.GetEntryByRegistrationID(ur['Id'])
-		if not db_entry:
-			new_registration = True
-		else:
-			new_registration = False
-		#deleted = ur['Id'] in delete_list
-
-
-		if new_registration:
-			print("Registration from %s ago."%(time_since_registration))
-			print('    %s : $%d : %s : %s : %s : %s\n' 
-				   %(ur['Contact']['Name'],
-				   	ur['RegistrationFee'],
-				   	registrantEmail,
-				   	ur['RegistrationDate'],
-				   	ur['Event']['Name'].strip(),
-				   	time_before_class)
-				   #	ur['Id'])
-		 		 )
-		#if not deleted:
-		if(time_since_registration > nag_buffer):
-			if new_registration:
-				print ("Sending nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
-				if(registration_date < enforcement_date):
-					template = open(config.get('files', 'pre-warningTemplate'), 'r')
-				else:
-					template = open(config.get('files', 'warningTemplate'), 'r')
-				if registration_time_before_class > (unpaid_cutoff + unpaid_buffer):
-					drop_date = event_start_date - unpaid_cutoff
-				elif registration_time_before_class > unpaid_buffer:
-					drop_date = registration_date + unpaid_buffer
-				else:
-					drop_date = event_start_date - noshow_drop
-				#nag_list.append(ur['Id'])
-				split_name = ur['Contact']['Name'].split(',')
-				registrant_first_name = split_name[1]
-				registrant_last_name = split_name[0]
-				db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
-				db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-							   action="Add unpaid registration to nag database.")
-				db.SetFirstNagSent(ur['Id'])
-				needs_email = True
-
-			elif time_since_registration > unpaid_buffer:
-				if registration_time_before_class < unpaid_cutoff:
-					if(registration_date > enforcement_date):
-						print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
-						monitor.DeleteRegistration(ur['Id'])
-						template = open(config.get('files', 'cancellationTemplate'), 'r')
-						#delete_list.append(ur['Id'])
-						db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-							  		   action="Delete registration")
-						db.SetRegistrationDeleted(ur['Id'])
-						needs_email = True
-		
-			if needs_email:	
-				template.seek(0)
-				t = template.read().format(
-										     FirstName = ur['Contact']['Name'].split(',')[1], 
-											 EventName = ur['Event']['Name'].strip(),
-											 EventDate = event_start_date.strftime(time_format_string),
-											 UnpaidDropDate = drop_date.strftime(time_format_string),
-											 EnforcementDate = enforcement_date.strftime('%B %d, %Y'),
-											 CancellationWindow = unpaid_cutoff.days
-											 )
-				subject = t.split('----')[0]
-				message = t.split('----')[1]
-
-				db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-							  		   action="Send email with subject `%s`" %(subject.strip()))
-				mb.send(toEmail, subject , message)
+	#unpaid_registrants = monitor.FindUnpaidRegistrants()
+	
 
 	# for entry in db.GetLog():
 	# 	print(entry)
@@ -314,66 +436,17 @@ while(1):
 
 	##### Send Reminders to registrants in upcoming events #####
 	upcoming_events = monitor.FindUpcomingClasses()
-	if upcoming_events:
-		for event in upcoming_events:
-			event_start_date = ConvertWADate(event['StartDate'])
-			time_before_class = event_start_date - datetime.now(tzlocal)
+	if upcoming_events == False:
+		api_call_failures += 1
+		print("API call Failures: %d" %(api_call_failures))
 
-			if not db.GetEntryByEventID(event['Id']):
-				print("event '%s' not in database" % event['Name'].strip())
-				db.AddEventToDB(event['Id'])
-				db.AddLogEntry(ur['Event']['Name'].strip(), None, None,
-				  		   action="Add event `%s` to database" %(event['Name'].strip()))
+	else:
+		monitor.ProcessUnpaidRegistrants(upcoming_events)
+		monitor.SendEventReminders(upcoming_events)
 
-			index = 1
-			for r in reminders_days:
-				needs_email = False
-				if time_before_class < r:
-					if index == 1:
-						if not db.GetFirstEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
-							print("send first event reminder email for " + event['Name'].strip())
-							db.SetFirstEventNagSent(event['Id'])
-							template = open(config.get('files', 'eventReminder'), 'r')
-							needs_email = True
-					if index == 2:
-						if not db.GetSecondEventNagSent(event['Id']) and time_before_class > reminders_days[index]:
-							print("send second event reminder email for " + event['Name'].strip())
-							db.SetSecondEventNagSent(event['Id'])
-							template = open(config.get('files', 'eventReminder'), 'r')
-							needs_email = True
-					if index == 3:
-						if not db.GetThirdEventNagSent(event['Id']):
-							print("send third event reminder email for " + event['Name'])
-							db.SetThirdEventNagSent(event['Id'])
-							template = open(config.get('files', 'eventReminder'), 'r')
-							needs_email = True
-
-				if needs_email:	
-					registrants = monitor.GetRegistrantsByEventID(event['Id'])
-					for r in registrants:
-						registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
-						registration_date = ConvertWADate(r['RegistrationDate'])
-						registration_time_before_class = event_start_date - registration_date
-						time_since_registration = datetime.now(tzlocal) - registration_date
-						registrant_first_name = r['Contact']['Name'].split(',')[1]
-						registrant_last_name = r['Contact']['Name'].split(',')[0]
-
-						toEmail = registrantEmail
-						#toEmail = ['iceman81292@gmail.com']
+	if datetime.now() - script_start_time > timedelta(minutes=60):
+		exit()
 
 
-						template.seek(0)
-						t = template.read().format(
-												     FirstName = registrant_first_name, 
-													 EventName = event['Name'].strip(),
-													 EventDate = event_start_date.strftime(time_format_string),
-													 ReminderNumber = index
-													 )
-						subject = t.split('----')[0]
-						message = t.split('----')[1]
 
-						db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-									  		   action="Send email with subject `%s`" %(subject.strip()))
-						mb.send(toEmail, subject , message)
-
-				index+=1
+	
