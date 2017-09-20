@@ -6,7 +6,7 @@ Hello {FirstName},
 It appears that you have an unpaid registration for "{EventName}" on {EventDate} at MakeICT.  Your spot is reserved, but only until {UnpaidDropDate}, at which point your registration will be removed and the spot will be open for others to register.  If you would like to keep your spot, please complete payment before {UnpaidDropDate}.  Payment options are listed below.  If you registered for this class in error, or would otherwise like to cancel your registration, please reply to this email and request cancellation.
 
 Payment options
-	1. Through PayPal at members.makeict.org/Sys/Profile/Finances
+	1. Through PayPal at https://makeict.wildapricot.org/Sys/Profile/Finances
 	2. Cash/Check in the dropbox at MakeICT.  If you use this method, please reply to this email and let us know so we can hold your spot.  It will take a few days to process the payment.
 
 If you have any questions or concerns, you can send them in a reply to this email.  I'll make sure they reach the appropriate party.

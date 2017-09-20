@@ -136,9 +136,7 @@ class RegiMon():
 
 		return open_events
 
-	def FindUpcomingClassesWithNoCheckinVolunteer(self):
-		logging.debug('Searching for upcoming events with no checkin volunteer')
-		events = self._make_api_request('Events?$filter=IsUpcoming+eq+true')
+	def FilterClassesWithNoCheckinVolunteer(self, events):
 		if events == False:
 			return False
 		no_checkin_events = []
@@ -362,6 +360,10 @@ class RegiMon():
 
 					index+=1
 
+	def ProcessEventsWithNoCheckinVolunteer(self, events):
+		filtered_events = self.FilterClassesWithNoCheckinVolunteer(events)
+		for event in filtered_events:
+			pass
 
 script_start_time = datetime.now()
 db = Database()
@@ -444,7 +446,7 @@ while(1):
 		monitor.ProcessUnpaidRegistrants(upcoming_events)
 		monitor.SendEventReminders(upcoming_events)
 
-	if datetime.now() - script_start_time > timedelta(minutes=60):
-		exit()
+	# if datetime.now() - script_start_time > timedelta(minutes=60):
+	# 	exit()
 
 
