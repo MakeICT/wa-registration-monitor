@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/python3
 
-import logging, time
+import logging, time, traceback, os
 from datetime import datetime
 from datetime import timedelta
 from dateutil import tz
@@ -11,6 +11,8 @@ import MySQLdb
 from WildApricotAPI.WildApricotAPI import WaApiClient
 from MailBot.mailer import MailBot
 from Database import Database
+
+os.chdir("/storage/Projects/MakeICT/Registration-Monitor")
 
 tzlocal = tz.gettz('CST')
 
@@ -222,7 +224,6 @@ class RegiMon():
 				else:
 					drop_date = event_start_date - noshow_drop
 				toEmail = registrantEmail
-				#toEmail = ['iceman81292@gmail.com']
 				needs_email = False
 				#new_registration = ur['Id'] not in nag_list
 				db_entry = db.GetEntryByRegistrationID(ur['Id'])
@@ -326,25 +327,26 @@ class RegiMon():
 
 					if needs_email:	
 						registrants = monitor.GetRegistrantsByEventID(event['Id'])
-						for r in registrants:
-							registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
-							registration_date = self.ConvertWADate(r['RegistrationDate'])
-							registration_time_before_class = event_start_date - registration_date
-							time_since_registration = datetime.now(tzlocal) - registration_date
-							registrant_first_name = r['Contact']['Name'].split(',')[1]
-							registrant_last_name = r['Contact']['Name'].split(',')[0]
+						if registrants:
+							for r in registrants:
+								registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
+								registration_date = self.ConvertWADate(r['RegistrationDate'])
+								registration_time_before_class = event_start_date - registration_date
+								time_since_registration = datetime.now(tzlocal) - registration_date
+								registrant_first_name = r['Contact']['Name'].split(',')[1]
+								registrant_last_name = r['Contact']['Name'].split(',')[0]
 
-							
-							toEmail = registrantEmail
-							replacements =  {'FirstName':registrant_first_name, 
-											 'EventName':event['Name'].strip(),
-											 'EventDate':event_start_date.strftime(time_format_string),
-											 'ReminderNumber':index}
-							self.SendEmail(toEmail, template, replacements)
-							db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-								  		   action="Send event reminder email")
-							#toEmail = ['iceman81292@gmail.com']
-
+								
+								toEmail = registrantEmail
+								replacements =  {'FirstName':registrant_first_name, 
+												 'EventName':event['Name'].strip(),
+												 'EventDate':event_start_date.strftime(time_format_string),
+												 'ReminderNumber':index}
+								self.SendEmail(toEmail, template, replacements)
+								db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+									  		   action="Send event reminder email")
+						else: 
+							print("Failed to get registrant list")
 
 							# template.seek(0)
 							# t = template.read().format(
@@ -408,45 +410,53 @@ mb.setAdminAddress(config.get('email', 'adminAddress'))
 
 #nag_list = []
 #delete_list = []
-api_call_failures = 0
-while(1):
-	time.sleep(poll_interval)
+# api_call_failures = 0
+# while(1):
+# 	time.sleep(poll_interval)
 
-	##### Find and email unpaid registrants #####
-	#unpaid_registrants = monitor.FindUnpaidRegistrants()
-	
+##### Find and email unpaid registrants #####
+#unpaid_registrants = monitor.FindUnpaidRegistrants()
 
-	# for entry in db.GetLog():
-	# 	print(entry)
 
-	##### Find events that need check-in volunteers and email event-team #####
-	# events_without_checkin = monitor.FindUpcomingClassesWithNoCheckinVolunteer()
-	# #print(events_without_checkin)
-	# for event in events_without_checkin:
-	# 	print(event)
-	# 	template = open(config.get('files', 'checkinRequ0estTemplate'), 'r')
-	# 	template.seek(0)
-	# 	t = template.read().format(
-	# 								 EventName = event['Name'].strip(),
-	# 								 EventDate = event_start_date.strftime(time_format_string),
-	# 								 )
-	# 	subject = t.split('----')[0]
-	# 	message = t.split('----')[1]
+# for entry in db.GetLog():
+# 	print(entry)
 
-	# 	mb.send(toEmail, subject , message)
-	# 	#mb.check()
+##### Find events that need check-in volunteers and email event-team #####
+# events_without_checkin = monitor.FindUpcomingClassesWithNoCheckinVolunteer()
+# #print(events_without_checkin)
+# for event in events_without_checkin:
+# 	print(event)
+# 	template = open(config.get('files', 'checkinRequ0estTemplate'), 'r')
+# 	template.seek(0)
+# 	t = template.read().format(
+# 								 EventName = event['Name'].strip(),
+# 								 EventDate = event_start_date.strftime(time_format_string),
+# 								 )
+# 	subject = t.split('----')[0]
+# 	message = t.split('----')[1]
 
-	##### Send Reminders to registrants in upcoming events #####
-	upcoming_events = monitor.FindUpcomingClasses()
-	if upcoming_events == False:
-		api_call_failures += 1
-		print("API call Failures: %d" %(api_call_failures))
+# 	mb.send(toEmail, subject , message)
+# 	#mb.check()
 
-	else:
+##### Send Reminders to registrants in upcoming events #####
+upcoming_events = monitor.FindUpcomingClasses()
+if upcoming_events == False:
+	api_call_failures += 1
+	print("API call Failures: %d" %(api_call_failures))
+
+else:
+	try:
 		monitor.ProcessUnpaidRegistrants(upcoming_events)
 		monitor.SendEventReminders(upcoming_events)
+		print(config.get('email', 'adminAddress'))
+		message = "Registration Monitor completed successfully"
+		mb.send([config.get('email', 'adminAddress')], "Registration Monitor Success", message)
 
-	# if datetime.now() - script_start_time > timedelta(minutes=60):
-	# 	exit()
+	except Exception as e:
+		message = "The following exception was thrown:\r\n\r\n" + str(e) + "\r\n\r\n" + traceback.format_exc()
+		mb.send([config.get('email', 'adminAddress')], "Registration Monitor Crash", message)
+
+# if datetime.now() - script_start_time > timedelta(minutes=60):
+# 	exit()
 
 
