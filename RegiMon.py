@@ -12,7 +12,7 @@ from WildApricotAPI.WildApricotAPI import WaApiClient
 from MailBot.mailer import MailBot
 from Database import Database
 
-os.chdir("/storage/Projects/MakeICT/Registration-Monitor")
+os.chdir(config.get('files', 'installDirectory'))
 
 tzlocal = tz.gettz('CST')
 
