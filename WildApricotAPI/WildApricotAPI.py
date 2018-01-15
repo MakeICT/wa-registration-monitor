@@ -68,9 +68,9 @@ class WaApiClient(object):
 		request.add_header("ContentType", "application/x-www-form-urlencoded")
 		auth_header = base64.standard_b64encode((self.client_id + ':' + self.client_secret).encode()).decode()
 		request.add_header("Authorization", 'Basic ' + auth_header)
-		print(request.__dict__)
+		# print(request.__dict__)
 		response = urllib.request.urlopen(request)
-		print(response.code)
+		# print(response.code)
 		self._token = WaApiClient._parse_response(response)
 		self._token['retrieved_at'] = datetime.datetime.now()
 		
@@ -246,6 +246,10 @@ class WaApiClient(object):
 
 	def GetContactById(self, contact_id): 
 		contact = self._make_api_request('/Contacts/%d'%contact_id)
+		return contact	
+
+	def GetContactByEmail(self, contact_email): 
+		contact = self._make_api_request('/Contacts/?$async=false&$filter=email+eq+' + contact_email)
 		return contact
 
 	def UpdateContact(self, contact_id, data):

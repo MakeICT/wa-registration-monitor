@@ -15,9 +15,11 @@ from MailBot.mailer import MailBot
 #os.chdir(config.get('files', 'installDirectory'))
 
 
-tzlocal = tz.gettz('CST')
+# tzlocal = tz.gettz('CST')
 
 class CredCheck():
+	lastAuthenticatedUser = None
+
 	def __init__(self, client_id, client_secret, username, password):		
 		self.options = {"client_id":client_id, "client_secret":client_secret}
 		self.WA_API = WaApiClient(client_id, client_secret)
@@ -28,6 +30,7 @@ class CredCheck():
 		try:
 			try:
 				result = self.WA_API.authenticate_contact(username, password)
+				self.lastAuthenticatedUser = username
 				print("user authenticated!")
 				return True
 			except urllib.error.HTTPError as e:
@@ -41,42 +44,26 @@ class CredCheck():
 			mb.send([config.get('email', 'adminAddress')], "Registration Monitor Crash", message)
 			raise
 
-	def PrintUserInfo(self):
-		print(self.WA_API.GetMe())
-		print(self.WA_API.GetContactById(38657966))
+	def GetUserInfo(self):
+		if self.lastAuthenticatedUser:
+			return self.WA_API.GetContactByEmail(self.lastAuthenticatedUser)
 
 script_start_time = datetime.now()
-#db = Database()
-#current_db = db.GetAll()
-#for entry in current_db:
-#	print (entry)
+
 config = configparser.SafeConfigParser()
-config.read('config.ini')
-print(config.items('api'))
-print(config.items('thresholds'))
+config.read('auth_config.ini')
 
-time_format_string = '%B %d, %Y at %I:%M%p'
-unpaid_cutoff = timedelta(days=config.getint('thresholds','unpaidCutOff'))
-unpaid_buffer = timedelta(hours=config.getint('thresholds', 'unpaidBuffer'))
-noshow_drop = timedelta(minutes=config.getint('thresholds','noShowDrop'))
-poll_interval = config.getint('api','pollInterval')
-nag_buffer = timedelta(minutes=config.getint('thresholds','nagBuffer'))
-enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),'%m-%d-%y %z')
-reminders = len(config.get('thresholds', 'reminderDays').split(','))
-reminders_days = []
-#for r in config.get('thresholds', 'reminderDays').split(','):
-#	reminders_days.append(timedelta(days=int(r)))
+script = CredCheck(config.get('api','client_id'),
+				   config.get('api','client_secret'),
+				   config.get('api','admin_username'),
+				   config.get('api','admin_password'),)
 
-#script = CredCheck('tzh619hfyw','1mt5qzws075bfywcwk5jt7bw2oikml','iceman81292@gmail.com', 'TJLr9Ffg')
-script = CredCheck('tzh619hfyw','1mt5qzws075bfywcwk5jt7bw2oikml','testuser@makeict.org', 'password')
 
-mb = MailBot(config.get('email','username'), config.get('email','password'))
-mb.setDisplayName(config.get('email', 'displayName'))
-mb.setAdminAddress(config.get('email', 'adminAddress'))
+username = 'testuser@makeict.org'
+password = 'password'
 
-#script.AuthenticateUser('testuser@makeict.org', 'password')
-script.PrintUserInfo()
-#script.AuthenticateUser('iceman81292@gmail.com', 'TJLr9Ffg')
+script.AuthenticateUser(username, password)
+# print(script.GetUserInfo())
 
 
 
