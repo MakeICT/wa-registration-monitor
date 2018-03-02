@@ -71,14 +71,29 @@ try:
 	# for log in logs:
 	# 	print(log)
 
-	start_date = datetime(2017, 12, 1)
-	end_date = datetime(2017, 12, 31)
+	# start_date = datetime(2018, 2, 1)
+	# end_date = datetime(2018, 3, 1)
+
+	start_date = datetime.today()
+	start_date = start_date.replace(day=1, month=((start_date.month+10)%12)+1, hour=0, minute=0, second=0, microsecond=0)
+	if start_date.month == 12:
+		start_date = start_date.replace(year=start_date.year-1)
+	print(start_date)
+	end_month = start_date.month + 1
+	if end_month == 13:
+		end_month = 1
+	end_date = start_date.replace(month=end_month)
+	if end_date.month == 1:
+		end_date = end_date.replace(year=end_date.year+1)
+	print(end_date)
 
 	print("\n=================================================")
 	print("Voided Event Invoices")
 	print("=================================================")
 
-	invoices = WA_API.GetInvoicesByDate('2017-11-01','2017-12-31')
+	invoice_start_date = start_date - timedelta(days=90)
+	s = invoice_start_date.strftime("%Y-%m-%d")
+	invoices = WA_API.GetInvoicesByDate(invoice_start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
 	void_event_invoices = []
 	for invoice in invoices:
 		try:
@@ -88,8 +103,13 @@ try:
 				invoice_with_details = WA_API.GetInvoiceByID(invoice['Id'])
 				if "Registration was canceled" in invoice_with_details['Memo']:
 					for detail in invoice_with_details["OrderDetails"]:
-						event_date = detail['Notes'].split('(')[1].split(',')[0].split('-')[0].strip()
-						event_date = datetime.strptime(event_date, '%d %b %Y %H:%M %p')
+						print(detail)
+						try: 
+							detail['Notes'].index("Registration for")
+							event_date = detail['Notes'].split('(')[1].split(',')[0].split('-')[0].strip()
+							event_date = datetime.strptime(event_date, '%d %b %Y %H:%M %p')
+						except:
+							print(detail)
 						#print(event_date)
 					#print(void_date)
 					if event_date >= start_date and event_date <= end_date:
@@ -118,14 +138,14 @@ try:
 	print("\n=================================================")
 	print("Instructor Payments Owed")
 	print("=================================================")
-	events = WA_API.GetEventsByDate('2017-12-01','2017-12-31')
+	events = WA_API.GetEventsByDate(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
 	# for event in events:
 	# 	print(event['Name'])
 	payment_summary = []
 	unpaid_registrations = []
 	for event in events:
 	#event = WA_API.GetEventByID(2757871)
-    #print(event)
+		print(event['Name'],event['StartDate'])
 		registrants = WA_API.GetRegistrantsByEventID(event['Id'])
 		total_owed = 0
 		total_paid = 0
@@ -174,6 +194,9 @@ try:
 						total_instructor_fees += int(registrant['RegistrationFee']) - regular_facility_fee
 					else:
 						total_facility_fees += safety_facility_fee
+				else:
+					print("Unhandled Registration Type!!")
+
 		
 		class_duration = (WA_API.ConvertWADate(event["EndDate"])-WA_API.ConvertWADate(event["StartDate"]))/ timedelta(hours=1)
 
@@ -199,6 +222,7 @@ try:
 
 		# print("instructor payment:",instructor_payment)
 		payment_summary.append({'event_name':event["Name"],
+								'event_date':event["StartDate"][5:10],
 								'instructor_name':instructor_name,
 								'instructor_email':instructor_email,
 								'payment':instructor_payment,
@@ -217,7 +241,7 @@ try:
 		total_payment = 0
 		for p in payment_summary:
 			if p['instructor_email'] == e:
-				print(p['event_name'],p['payment'])
+				print(p['event_date'],p['event_name'],p['payment'])
 				total_payment += p['payment']
 		print('total due:',total_payment)
 		print('--------------------------------')

@@ -292,8 +292,15 @@ class WaApiClient(object):
 		return self._make_api_request('Events/'+str(event_id), method='DELETE')
 
 	def GetRegistrationTypesByEventID(self, event_id):
-		reg_types = self._make_api_request('EventRegistrationTypes?eventId='+str(event_id))
+		reg_types = self._make_api_request('Events/'+str(event_id))
 		return reg_types
+
+	def GetUpcomingEvents(self, include_details=False):
+		url = 'Events?$filter=IsUpcoming+eq+true%20AND%20RegistrationEnabled+eq+true'
+		if include_details:
+			url += '&includeEventDetails=true'
+		events = self._make_api_request(url)
+		return events
 
 	def SetEventAccessControl(self, event_id, restricted=False, any_level=True, any_group=True, group_ids=[], level_ids=[]):
 		event = self.GetEventByID(event_id)

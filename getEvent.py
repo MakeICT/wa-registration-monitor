@@ -61,9 +61,9 @@ mb.setAdminAddress(config.get('email', 'adminAddress'))
 #Email info to treasurer
 
 try:
-	registration_type = WA_API.GetRegistrationTypesByEventID(2788094)[1]
+	registration_type = WA_API.GetRegistrationTypesByEventID(2802353)[1]
 	print(registration_type)
-	registration_type['BasePrice'] = 35
+	registration_type['BasePrice'] = 20
 	result = WA_API.execute_request('EventRegistrationTypes/%s'%registration_type['Id'], registration_type, method='PUT')
 	print(result)
 #	WA_API.DeleteEvent(2757684)
