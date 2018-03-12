@@ -1,0 +1,9 @@
+https://www.smartwaiver.com/w/5a7371cfedd7b/web/?wautofill_firstname=Rocky&wautofill_lastname=Rogers&wautofill_dobyyyymmdd=19800921&wautofill_tag=123&wautofill_email=testuser@makeict.org
+
+waiver_id = 5a7371cfedd7b
+first_name = Testy
+last_name = McTestface
+dob = 19991122
+tag = 123
+
+https://www.smartwaiver.com/w/{{waiver_id}}/web/?wautofill_firstname={{first_name}}&wautofill_lastname={{last_name}}&wautofill_dobyyyymmdd={{dob}}&wautofill_tag={{tag}}
