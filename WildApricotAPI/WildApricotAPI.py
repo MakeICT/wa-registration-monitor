@@ -68,11 +68,41 @@ class WaApiClient(object):
 		request.add_header("ContentType", "application/x-www-form-urlencoded")
 		auth_header = base64.standard_b64encode((self.client_id + ':' + self.client_secret).encode()).decode()
 		request.add_header("Authorization", 'Basic ' + auth_header)
+		# print(request.__dict__)
 		response = urllib.request.urlopen(request)
+		# print(response.code)
 		self._token = WaApiClient._parse_response(response)
 		self._token['retrieved_at'] = datetime.datetime.now()
 		
 		self.set_endpoint_to_default_account()
+
+	def authenticate_contact(self, username, password, scope=None):
+		"""perform authentication by contact credentials and store result for execute_request method
+
+		username -- typically a contact email
+		password -- contact password
+		scope -- optional scope of authentication request. If None full list of API scopes will be used.
+		"""
+		scope = "auto" if scope is None else scope
+		data = {
+			"grant_type": "password",
+			"username": username,
+			"password": password,
+			"scope": scope
+		}
+		encoded_data = urllib.parse.urlencode(data).encode()
+		request = urllib.request.Request(self.auth_endpoint, encoded_data, method="POST")
+		request.add_header("ContentType", "application/x-www-form-urlencoded")
+		auth_header = base64.standard_b64encode((self.client_id + ':' + self.client_secret).encode()).decode()
+		request.add_header("Authorization", 'Basic ' + auth_header)
+		response = urllib.request.urlopen(request)
+
+		return response
+
+		# self._token = WaApiClient._parse_response(response)
+		# self._token['retrieved_at'] = datetime.datetime.now()
+		
+		# self.set_endpoint_to_default_account()
 
 	def set_endpoint_to_default_account(self):
 		accounts = self.execute_request("/v2.1/Accounts")
@@ -150,3 +180,210 @@ class WaApiClient(object):
 			return decoded[list(decoded.keys())[0]]
 		else:
 			return decoded
+
+
+
+	def ConnectAPI(self, API_key=None, username=None, password=None):
+		try:
+			if API_key:
+				self.authenticate_with_apikey(API_key)
+			else:
+				self.authenticate_with_contact_credentials(username, password)
+			return True
+		except urllib.error.HTTPError as e:
+		    print('The server couldn\'t fulfill the request.')
+		    print('Error code: ', e.code)
+		except urllib.error.URLError as e:
+		    print('We failed to reach a server.')
+		    print('Reason: ', e.reason)
+		return False
+
+	def _make_api_request(self, request_string, api_request_object=None, method=None):
+		try:	
+			return self.execute_request(request_string, api_request_object, method)
+		except urllib.error.HTTPError as e:
+		    print('The server couldn\'t fulfill the request.')
+		    print('Error code: ', e.code)
+		except urllib.error.URLError as e:
+		    print('We failed to reach a server.')
+		    print('Reason: ', e.reason)
+		return False
+
+	def _make_rpc_request(self, request_string, rpc_request_object=None):
+		try:	
+		    return self.execute_request(request_string, api_request_object, 'POST')
+		except urllib.error.HTTPError as e:
+		    print('The server couldn\'t fulfill the request.')
+		    print('Error code: ', e.code)
+		except urllib.error.URLError as e:
+		    print('We failed to reach a server.')
+		    print('Reason: ', e.reason)
+		return False
+
+	def ConvertWADate(self, wa_date):
+		fixed_date = wa_date[0:22]+wa_date[23:]
+		py_date = datetime.datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
+		return py_date
+
+
+##############################
+# Remote Procedure Calls
+##############################
+	def ApproveMembershipApplication(self, user_id):
+		return self._make_rpc_request('')
+
+##############################
+# Contacts
+##############################
+	def GetMe(self):
+		return self._make_api_request('/Contacts/me')
+
+	def GetAllContactIDs(self):
+		return self._make_api_request('/Contacts/?$async=false&idsOnly')
+
+	def GetMemberGroups(self):
+		return self._make_api_request('/MemberGroups')
+
+	def GetContactById(self, contact_id): 
+		contact = self._make_api_request('/Contacts/%d'%contact_id)
+		return contact	
+
+	def GetContactByEmail(self, contact_email): 
+		contact = self._make_api_request('/Contacts/?$async=false&$filter=email+eq+' + contact_email)
+		return contact
+
+	def UpdateContact(self, contact_id, data):
+		return self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Contacts/%d' %(contact_id), data, method="PUT")
+
+	def SetContactMembership(self, contact_id, level_id):
+		contact = self.GetContactById(contact_id)
+		contact['MembershipEnabled'] = True
+		contact['MembershipLevel'] = {'Id':level_id}
+		contact['Status'] = "Active"
+		# for field in contact['FieldValues']:
+		# 	if field["SystemCode"]=="Status":
+		# 		field["Value"]["Id"] = 1
+		# 		print("\nsetting membership active\n")
+		#print(contact)
+		return self.UpdateContact(contact_id, contact)
+
+	def SetMemberGroups(self, contact_id, group_ids):
+		data = self._make_api_request('/Contacts/%d'%contact_id)
+		for field in data["FieldValues"]:
+			if field["SystemCode"] == "Groups":
+				for group_id in group_ids:
+					field["Value"].append({'Id': group_id})
+		return self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Contacts/%d' %(contact_id), data, method="PUT")
+
+
+##############################
+# Events API Calls
+##############################
+	def GetEventByID(self, event_id):
+		event = self._make_api_request('Events/'+str(event_id))
+		return event
+
+	def GetEventsByDate(self, start_date, end_date):
+		filter_string = "?$filter=StartDate+gt+"+ start_date + "+AND+StartDate+lt+"+end_date
+		events = self._make_api_request("Events/"+filter_string)
+		return events
+
+	def DeleteEvent(self, event_id):
+		return self._make_api_request('Events/'+str(event_id), method='DELETE')
+
+	def GetRegistrationTypesByEventID(self, event_id):
+		reg_types = self._make_api_request('Events/'+str(event_id))
+		return reg_types
+
+	def GetUpcomingEvents(self, include_details=False):
+		url = 'Events?$filter=IsUpcoming+eq+true%20AND%20RegistrationEnabled+eq+true'
+		if include_details:
+			url += '&includeEventDetails=true'
+		events = self._make_api_request(url)
+		return events
+
+	def SetEventAccessControl(self, event_id, restricted=False, any_level=True, any_group=True, group_ids=[], level_ids=[]):
+		event = self.GetEventByID(event_id)
+		if restricted:
+			event["AccessLevel"] = "Restricted"
+			event["Details"]["AccessControl"]["AccessLevel"] = "Restricted"
+			event["Details"]["AccessControl"]["AvailableForAnyLevel"] = any_level
+			event["Details"]["AccessControl"]["AvailableForAnyGroup"] = any_group
+			groups=[]
+			for group_id in group_ids:
+				groups.append({'Id':group_id})
+			event["Details"]["AccessControl"]["AvailableForGroups"] = groups
+			levels=[]
+			for levels_id in level_ids:
+				levels.append({'Id':level_id})
+			event["Details"]["AccessControl"]["AvailableForLevels"] = levels
+		else:
+			event["AccessLevel"] = ""
+			event["Details"]["AccessControl"]["AccessLevel"] = ""
+			event["Details"]["AccessControl"]["AvailableForAnyLevel"] = True
+			event["Details"]["AccessControl"]["AvailableForAnyGroup"] = True
+			event["Details"]["AccessControl"]["AvailableForGroups"] = []
+			event["Details"]["AccessControl"]["AvailableForLevels"] = []
+		return self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Events/%d' %(event_id), event, method="PUT")
+	
+##############################
+# Event Registrations
+##############################:
+	def GetRegistrationByID(self, registration_id):
+		registration = self._make_api_request('EventRegistrations?$filter=ID+in+['+str(registration_id)+']')
+		return registration
+
+
+	def GetRegistrantsByEventID(self, event_id):
+		registrants = self._make_api_request('EventRegistrations?eventID='+str(event_id))
+		return registrants
+
+	def GetRegistrationByContactID(self, contact_id):
+		registrations = self._make_api_request('EventRegistrations?contactId='+str(contact_id))
+		return registrations
+
+	def CheckPendingPayment(self, registration):
+		for field in registration["RegistrationFields"]:
+			if field["FieldName"] == "StorageBinNumber":
+				if field["Value"] == "PendingPayment":
+					return True
+		return False
+
+	def MarkPendingPayment(self, registration_id, registration):
+		for field in registration["RegistrationFields"]:
+			if field["FieldName"] == "StorageBinNumber":
+				field["Value"] = "PendingPayment"
+
+		return self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), registration, method="PUT")
+
+	def DeleteRegistration(self, registration_id):
+		try:
+			response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), method="DELETE")
+			if response == False:
+				return False
+		except ValueError:
+			pass
+
+	def GetRegistrationsByContact(self, contact_id): 
+		registrations = self._make_api_request('/EventRegistrations?contactId=%d'%contact_id)
+		return registrations
+
+##############################
+# Invoices
+##############################
+	def GetInvoiceByID(self, invoice_id):
+		invoice = self._make_api_request('Invoices/%s' % (invoice_id))
+		return invoice
+
+	def GetInvoicesByDate(self, start_date, end_date):
+		filter_string = "?StartDate="+ start_date + "&EndDate="+end_date+"&Void=True"
+		invoices = self._make_api_request("Invoices"+filter_string)
+		return invoices
+
+##############################
+# Logs
+##############################
+	def GetLogItems(self):
+		log = self._make_api_request("AuditLogItems/?StartDate=2017-12-05&EndDate=2017-12-07")
+		return log
+

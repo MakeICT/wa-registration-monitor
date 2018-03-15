@@ -1,16 +1,17 @@
 #!/usr/bin/python3
 
-import logging, time, traceback, os
+import logging, time, traceback, os, sys
 from datetime import datetime
 from datetime import timedelta
 from dateutil import tz
 import urllib
 import configparser
-import MySQLdb
+#import MySQLdb
 
 from WildApricotAPI.WildApricotAPI import WaApiClient
 from MailBot.mailer import MailBot
-from Database import Database
+#from Database import Database
+
 
 os.chdir('/home/pi/code/wa-registration-monitor')
 
@@ -47,6 +48,52 @@ class RegiMon():
 		    print('Reason: ', e.reason)
 		return False
 
+    def _make_rpc_request(self, request_string, rpc_request_object=None):
+		try:	
+		    return self.api.execute_request(request_string, api_request_object, 'POST')
+		except urllib.error.HTTPError as e:
+		    print('The server couldn\'t fulfill the request.')
+		    print('Error code: ', e.code)
+		except urllib.error.URLError as e:
+		    print('We failed to reach a server.')
+		    print('Reason: ', e.reason)
+		return False
+
+	def ApproveMembershipApplication(self, user_id):
+		self._make_rpc_request('')
+
+	def GetEventByID(self, event_id):
+		event = self._make_api_request('Events/'+str(event_id))
+		return event
+
+	def GetRegistrationTypesByEventID(self, event_id):
+		reg_types = self._make_api_request('EventRegistrationTypes?eventId='+str(event_id))
+		return reg_types
+
+	def SetEventAccessControl(self, event_id, restricted=False, any_level=True, any_group=True, group_ids=[], level_ids=[]):
+		event = self.GetEventByID(event_id)
+		if restricted:
+			event["AccessLevel"] = "Restricted"
+			event["Details"]["AccessControl"]["AccessLevel"] = "Restricted"
+			event["Details"]["AccessControl"]["AvailableForAnyLevel"] = any_level
+			event["Details"]["AccessControl"]["AvailableForAnyGroup"] = any_group
+			groups=[]
+			for group_id in group_ids:
+				groups.append({'Id':group_id})
+			event["Details"]["AccessControl"]["AvailableForGroups"] = groups
+			levels=[]
+			for levels_id in level_ids:
+				levels.append({'Id':level_id})
+			event["Details"]["AccessControl"]["AvailableForLevels"] = levels
+		else:
+			event["AccessLevel"] = ""
+			event["Details"]["AccessControl"]["AccessLevel"] = ""
+			event["Details"]["AccessControl"]["AvailableForAnyLevel"] = True
+			event["Details"]["AccessControl"]["AvailableForAnyGroup"] = True
+			event["Details"]["AccessControl"]["AvailableForGroups"] = []
+			event["Details"]["AccessControl"]["AvailableForLevels"] = []
+		response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Events/%d' %(event_id), event, method="PUT")
+	
 	def GetRegistrantsByEventID(self, event_id):
 		registrants = self._make_api_request('EventRegistrations?eventID='+str(event_id))
 		return registrants
@@ -96,13 +143,13 @@ class RegiMon():
 	def MarkPendingPayment(self, registration_id, registration):
 		for field in registration["RegistrationFields"]:
 			if field["FieldName"] == "StorageBinNumber":
-				print("Found Last Name!")
 				field["Value"] = "PendingPayment"
 
 		response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), registration, method="PUT")
 
 	def DeleteRegistration(self, registration_id):
 		try:
+			f
 			response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(registration_id), method="DELETE")
 			if response == False:
 				return False
@@ -113,6 +160,38 @@ class RegiMon():
 		registrations = self._make_api_request('/EventRegistrations?contactId=%d'%contact_id)
 		return registrations
 
+	def GetAllContactIDs(self):
+		return self._make_api_request('/Contacts/?$async=false&idsOnly')
+
+	def GetMemberGroups(self):
+		return self._make_api_request('/MemberGroups')
+
+	def GetContactById(self, contact_id): 
+		contact = self._make_api_request('/Contacts/%d'%contact_id)
+		return contact
+
+	def UpdateContact(self, contact_id, data):
+		response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Contacts/%d' %(contact_id), data, method="PUT")
+
+	def SetContactMembership(self, contact_id, level_id):
+		contact = self.GetContactById(contact_id)
+		contact['MembershipEnabled']=True
+		contact['MembershipLevel'] = {'Id':level_id}
+		contact['Status'] = "Active"
+		# for field in contact['FieldValues']:
+		# 	if field["SystemCode"]=="Status":
+		# 		field["Value"]["Id"] = 1
+		# 		print("\nsetting membership active\n")
+		print(contact)
+		self.UpdateContact(contact_id, contact)
+
+	def SetMemberGroups(self, contact_id, group_ids):
+		data = self._make_api_request('/Contacts/%d'%contact_id)
+		for field in data["FieldValues"]:
+			if field["SystemCode"] == "Groups":
+				for group_id in group_ids:
+					field["Value"].append({'Id': group_id})
+		response = self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Contacts/%d' %(contact_id), data, method="PUT")
 
 	def FindUpcomingClasses(self):
 		logging.debug('Finding all upcoming classes')
@@ -368,10 +447,10 @@ class RegiMon():
 			pass
 
 script_start_time = datetime.now()
-db = Database()
-current_db = db.GetAll()
-for entry in current_db:
-	print (entry)
+#db = Database()
+#current_db = db.GetAll()
+#for entry in current_db:
+#	print (entry)
 config = configparser.SafeConfigParser()
 config.read('config.ini')
 print(config.items('api'))
@@ -386,8 +465,8 @@ nag_buffer = timedelta(minutes=config.getint('thresholds','nagBuffer'))
 enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),'%m-%d-%y %z')
 reminders = len(config.get('thresholds', 'reminderDays').split(','))
 reminders_days = []
-for r in config.get('thresholds', 'reminderDays').split(','):
-	reminders_days.append(timedelta(days=int(r)))
+#for r in config.get('thresholds', 'reminderDays').split(','):
+#	reminders_days.append(timedelta(days=int(r)))
 
 monitor = RegiMon(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
@@ -446,15 +525,115 @@ if upcoming_events == False:
 
 else:
 	try:
-		monitor.ProcessUnpaidRegistrants(upcoming_events)
-		monitor.SendEventReminders(upcoming_events)
-		print(config.get('email', 'adminAddress'))
-		message = "Registration Monitor completed successfully"
-		mb.send([config.get('email', 'adminAddress')], "Registration Monitor Success", message)
+		test_user_id=38043528
+		test_user_id=38657966
+		test_user_id=42705673
+		test_event_id=2567080
+		test_group_id = 280209
+		#result = monitor.GetEventByID(test_event_id)
+		#result = monitor.GetRegistrationTypesByEventID(test_event_id)
+		#result = monitor.SetMemberGroups(test_user_id, [test_group_id])
+		#print(result)
+		#result = monitor.GetMemberGroups()
+		#for group in result:
+		#	print(group['Name'], group['Id'])
+		#print(result)
+                #Get all contact IDs
+		#
+		valid_authorizations = ['Woodshop','Metalshop','Forge','LaserCutter',\
+								'Mig welding', 'Tig welding', 'Stick welding', 'Manual mill',\
+								'Plasma', 'Metal lathes', 'CNC Plasma', 'Intro Tormach', 'Full Tormach']
+		#map old text-based authorizations to new group names
+		auth_map = {'Woodshop':416232,
+					'Metalshop':416231,
+					'Forge':420386,
+					'LaserCutter':416230,
+					'Mig welding':420387, 
+					'Tig welding':420388, 
+					'Stick welding':420389, 
+					'Manual mill':420390,			
+					'Plasma':420391, 
+					'Metal lathes':420392, 
+					'CNC Plasma':420393, 
+					'Intro Tormach':420394, 
+					'Full Tormach':420395}
+		auth_groups = [group['Name'] for group in monitor.GetMemberGroups() if group['Name'].strip().split('_')[0] == 'auth']
+		contactIDs = monitor.GetAllContactIDs()
+		failed_contact_IDs =[]
+		#contactIDs = [42705673,38657966,38043528,32777335,42819834]
+		for contactID in contactIDs:
+			try:
+				has_authorizations=False
+				user_authorizations=[]
+				contact = monitor.GetContactById(contactID)
+				print('\n\n',contact["FirstName"], contact["LastName"])
+				#if contact["FirstName"] != "Testy":
+				#	continue
+				for field in contact["FieldValues"]:
+					if field["FieldName"] == "authorizations":
+						if field["Value"] == '' or field["Value"] == None:
+							print("No authorizations")
+						else:
+							for authorization in field["Value"].split('\n'):
+								authorization_name = authorization[0:-11].strip()
+								if authorization_name != '':
+									if authorization_name in valid_authorizations:
+										has_authorizations=True
+										user_authorizations.append(authorization_name)
+									else:
+										#print(contact["FirstName"], contact["LastName"],'>')
+										print("ANOMALY FOUND:")
+										print(authorization_name)
+										print(authorization)
+				is_member = True
+				try:
+					contact["MembershipEnabled"]
+				except KeyError:
+					is_member = False
+				if is_member:
+					pass
+					#print("Member:True")
+				else:
+					pass
+					#print("Member:False")
+				#check if contact has authorizations
+				#if contact has authorizations
+				if has_authorizations:
+					print("Has authorizations:", user_authorizations)
+					#if contact is not member
+					if not is_member:
+						#add contact to Non-Member membership level
+						monitor.SetContactMembership(contact['Id'],'813239')
+						#TODO:approve membership
+					auth_group_list = []
+					for auth in user_authorizations:
+						auth_group_list.append(auth_map[auth])
+					print(auth_group_list)
+					monitor.SetMemberGroups(contact['Id'], auth_group_list)
+					#read list of authorizations from contact membership field
+					#add contact to appropriate groups according to authorizations
+				time.sleep(2)
+
+			except KeyboardInterrupt:
+				raise
+			except:
+				failed_contact_IDs.append(contactID)
+		print(failed_contact_IDs)
+		#result = monitor.GetContactById(test_user_id)
+		#print(result)
+		#monitor.SetContactMembership(test_user_id)
+		#monitor.SetEventAccessControl(test_event_id, restricted=True, any_group=False, group_ids=[130906])
+		#monitor.SetContactGroups(test_user_id)
+	#	monitor.ProcessUnpaidRegistrants(upcoming_events)
+	#	monitor.SendEventReminders(upcoming_events)
+	#	print(config.get('email', 'adminAddress'))
+	#	message = "Registration Monitor completed successfully"
+	#	mb.send([config.get('email', 'adminAddress')], "Registration Monitor Success", message)
 
 	except Exception as e:
 		message = "The following exception was thrown:\r\n\r\n" + str(e) + "\r\n\r\n" + traceback.format_exc()
 		mb.send([config.get('email', 'adminAddress')], "Registration Monitor Crash", message)
+		raise
 
 # if datetime.now() - script_start_time > timedelta(minutes=60):
 # 	exit()

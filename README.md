@@ -1,6 +1,6 @@
-# Wild Apricot Registration Monitor
+# MakeICT Automation Scripts
 
-This tool is used to fix glaring issues in Wild Apricot's registration system
+These scripts are used to automate some parts of running the MakeICT Makerspace.
 
 ## Use:
  - Install Python dependencies
