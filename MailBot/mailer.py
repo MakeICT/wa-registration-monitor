@@ -34,6 +34,9 @@ class MailBot():
 			from_field = self.email
 		else:
 			from_field = '"%s" <%s>' % (self.display_name, self.email)
+
+		if not type(to_addrs) == list:
+			to_addrs = [to_addrs]
 		msg = "\r\n".join([
 			"From: " + from_field,
 			"To: " + ",".join(to_addrs),

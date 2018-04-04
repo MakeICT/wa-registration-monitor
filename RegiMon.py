@@ -224,7 +224,12 @@ try:
 						drop_date = registration_date + unpaid_buffer
 					else:
 						drop_date = event_start_date - noshow_drop
-					toEmail = registrantEmail
+						
+					if (config.getint('script','debug')==1):
+						toEmail = config.get('email', 'adminAddress')
+					else:
+						toEmail = registrantEmail
+
 					needs_email = False
 					#new_registration = ur['Id'] not in nag_list
 					db_entry = db.GetEntryByRegistrationID(ur['Id'])
@@ -337,8 +342,13 @@ try:
 									registrant_first_name = r['Contact']['Name'].split(',')[1]
 									registrant_last_name = r['Contact']['Name'].split(',')[0]
 
-									
-									toEmail = registrantEmail
+									if config.getint('script', 'debug') == 1:
+										# print("debug succeeded")
+										toEmail = config.get('email', 'AdminAddress')
+									else:
+										# print("debug failed")
+										toEmail = registrantEmail
+
 									replacements =  {'FirstName':registrant_first_name, 
 													 'EventName':event['Name'].strip(),
 													 'EventDate':event_start_date.strftime(time_format_string),

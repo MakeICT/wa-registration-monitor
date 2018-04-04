@@ -185,9 +185,9 @@ class Database():
 
 		sql = """INSERT INTO ACTION_LOG(TIME_STAMP,
 	         EVENT_NAME, REGISTRANT_NAME, REGISTRANT_EMAIL, ACTION)
-	         VALUES ('%s', '%s', '%s', '%s', '%s')""" % (timestamp, event_name, registrant_name, registrant_email, action)
+	         VALUES (%s, %s, %s, %s, %s)"""
 		
-		self.NewCursor().execute(sql)
+		self.NewCursor().execute(sql,(timestamp, event_name, registrant_name, registrant_email, action))
 		self.Disconnect()
 
 	def GetLog(self):
