@@ -5,7 +5,11 @@ import time
 import datetime
 
 class Database():
-	def __init__(self):
+	def __init__(self, db_name, username, password):
+		self.username = username
+		self.password = password
+		self.db_name = db_name
+
 		self.Connect()
 
 		# Drop table if it already exist using execute() method.
@@ -21,7 +25,8 @@ class Database():
 					f()
 				except MySQLdb.OperationalError as err:
 					if '1050' in str(err):
-						print("database already exists")
+						# print("database already exists")
+						pass
 				# else:
 				# 	raise
 
@@ -29,7 +34,7 @@ class Database():
 			self.Disconnect()
 
 	def Connect(self):
-		self.db = MySQLdb.connect('localhost', 'regimon', 'regimon', 'regimon_db');
+		self.db = MySQLdb.connect('localhost', self.username, self.password, self.db_name);
 
 	def NewCursor(self):
 		self.Connect()

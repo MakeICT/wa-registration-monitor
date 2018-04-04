@@ -13,7 +13,9 @@ try:
 	from MailBot.mailer import MailBot
 	from Database import Database
 
-	os.chdir('/home/pi/code/wa-registration-monitor')
+	config = configparser.SafeConfigParser()
+	config.read('config.ini')
+	os.chdir(config.get('files','installDirectory'))
 
 	tzlocal = tz.gettz('CST')
 
@@ -379,14 +381,12 @@ try:
 				pass
 
 	script_start_time = datetime.now()
-	db = Database()
+	db = Database(config.get('database','name'),config.get('database','username'),config.get('database','password'))
 	current_db = db.GetAll()
-	for entry in current_db:
-		print (entry)
-	config = configparser.SafeConfigParser()
-	config.read('config.ini')
-	print(config.items('api'))
-	print(config.items('thresholds'))
+	# for entry in current_db:
+		# print (entry)
+	# print(config.items('api'))
+	# print(config.items('thresholds'))
 
 	time_format_string = '%B %d, %Y at %I:%M%p'
 	unpaid_cutoff = timedelta(days=config.getint('thresholds','unpaidCutOff'))
@@ -458,7 +458,7 @@ try:
 	else:
 		monitor.ProcessUnpaidRegistrants(upcoming_events)
 		monitor.SendEventReminders(upcoming_events)
-		print(config.get('email', 'adminAddress'))
+		# print(config.get('email', 'adminAddress'))
 		message = "Registration Monitor completed successfully"
 		mb.send([config.get('email', 'adminAddress')], "Registration Monitor Success", message)
 
@@ -468,3 +468,4 @@ try:
 except Exception as e:
 	message = "The following exception was thrown:\r\n\r\n" + str(e) + "\r\n\r\n" + traceback.format_exc()
 	mb.send([config.get('email', 'adminAddress')], "Registration Monitor Crash", message)
+	raise
