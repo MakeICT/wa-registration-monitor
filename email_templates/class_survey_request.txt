@@ -1,0 +1,15 @@
+Thanks for coming to "{EventName}" at MakeICT! Do you have any feedback?
+----
+Hi {FirstName},
+
+
+We wanted to thank you for attending "{EventName}" at MakeICT. We hope you had fun and learned a lot.
+
+If you have a moment, please fill out this survey to help us improve. 
+
+{SurveyLink}
+
+
+Thanks for your support,
+
+MakeICT Event Team
