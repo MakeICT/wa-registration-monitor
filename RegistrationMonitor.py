@@ -4,9 +4,9 @@ from datetime import datetime
 from datetime import timedelta
 from dateutil import tz
 
-from WildApricotAPI.WildApricotAPI import WaApiClient
-from MailBot.mailer import MailBot
-from Database import Database
+from wildapricot_api import WaApiClient
+from mailer import MailBot
+from database import Database
 
 class ChildScript(Script):
 	def Setup(self):

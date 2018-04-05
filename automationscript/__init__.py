@@ -2,15 +2,15 @@
 
 import logging, time, traceback, os
 from datetime import datetime
-from datetime import timedelta
-from dateutil import tz
-import urllib
+# from datetime import timedelta
+# from dateutil import tz
+# import urllib
 import configparser
-import MySQLdb
+# import MySQLdb
 
-from WildApricotAPI.WildApricotAPI import WaApiClient
-from MailBot.mailer import MailBot
-from Database import Database
+# from WildApricotAPI.WildApricotAPI import WaApiClient
+from mailer import MailBot
+# from Database import Database
 
 
 class Script(object):
@@ -26,8 +26,8 @@ class Script(object):
 		self.mailer.setDisplayName(self.config.get('email', 'displayName'))
 		self.mailer.setAdminAddress(self.config.get('email', 'adminAddress'))
 
-		db = Database(self.config.get('database','name'),self.config.get('database','username'),self.config.get('database','password'))
-		current_db = db.GetAll()
+		# db = Database(self.config.get('database','name'),self.config.get('database','username'),self.config.get('database','password'))
+		# current_db = db.GetAll()
 
 		self.Setup()
 
