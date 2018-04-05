@@ -8,7 +8,7 @@ import urllib
 import configparser
 #import MySQLdb
 
-from MCP_API import McpApiClient
+from mcp_api import McpApiClient
 from WildApricotAPI.WildApricotAPI import WaApiClient
 from MailBot.mailer import MailBot
 #from Database import Database

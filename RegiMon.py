@@ -173,6 +173,9 @@ try:
 			py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
 			return py_date
 
+
+####################################################################################################################################################
+
 		def SendEmail(self, to_address, template, replacements):
 			template.seek(0)
 			t = template.read().format(**replacements)
