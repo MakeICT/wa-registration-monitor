@@ -7,3 +7,4 @@ dob = 19991122
 tag = 123
 
 https://www.smartwaiver.com/w/{{waiver_id}}/web/?wautofill_firstname={{first_name}}&wautofill_lastname={{last_name}}&wautofill_dobyyyymmdd={{dob}}&wautofill_tag={{tag}}
+

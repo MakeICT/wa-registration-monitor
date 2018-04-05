@@ -191,39 +191,43 @@ class WaApiClient(object):
 				self.authenticate_with_contact_credentials(username, password)
 			return True
 		except urllib.error.HTTPError as e:
-		    print('The server couldn\'t fulfill the request.')
-		    print('Error code: ', e.code)
+			print('The server couldn\'t fulfill the request.')
+			print('Error code: ', e.code)
 		except urllib.error.URLError as e:
-		    print('We failed to reach a server.')
-		    print('Reason: ', e.reason)
+			print('We failed to reach a server.')
+			print('Reason: ', e.reason)
 		return False
 
 	def _make_api_request(self, request_string, api_request_object=None, method=None):
 		try:	
 			return self.execute_request(request_string, api_request_object, method)
 		except urllib.error.HTTPError as e:
-		    print('The server couldn\'t fulfill the request.')
-		    print('Error code: ', e.code)
+			print('The server couldn\'t fulfill the request.')
+			print('Error code: ', e.code)
 		except urllib.error.URLError as e:
-		    print('We failed to reach a server.')
-		    print('Reason: ', e.reason)
+			print('We failed to reach a server.')
+			print('Reason: ', e.reason)
 		return False
 
 	def _make_rpc_request(self, request_string, rpc_request_object=None):
 		try:	
-		    return self.execute_request(request_string, api_request_object, 'POST')
+			return self.execute_request(request_string, api_request_object, 'POST')
 		except urllib.error.HTTPError as e:
-		    print('The server couldn\'t fulfill the request.')
-		    print('Error code: ', e.code)
+			print('The server couldn\'t fulfill the request.')
+			print('Error code: ', e.code)
 		except urllib.error.URLError as e:
-		    print('We failed to reach a server.')
-		    print('Reason: ', e.reason)
+			print('We failed to reach a server.')
+			print('Reason: ', e.reason)
 		return False
 
 	def ConvertWADate(self, wa_date):
 		fixed_date = wa_date[0:22]+wa_date[23:]
 		py_date = datetime.datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
 		return py_date
+
+	def DateTimeToWADate(self, datetime):
+		pass
+
 
 
 ##############################
@@ -241,6 +245,9 @@ class WaApiClient(object):
 	def GetAllContactIDs(self):
 		return self._make_api_request('/Contacts/?$async=false&idsOnly')
 
+	def GetAllContacts(self):
+		return self._make_api_request('/Contacts?$async=false')
+
 	def GetMemberGroups(self):
 		return self._make_api_request('/MemberGroups')
 
@@ -254,6 +261,21 @@ class WaApiClient(object):
 
 	def UpdateContact(self, contact_id, data):
 		return self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Contacts/%d' %(contact_id), data, method="PUT")
+
+	def GetContactField(self, contact_id, field_name):
+		contact = self.GetContactById(contact_id)
+		field_value = [field["Value"] for field in contact['FieldValues'] if field['FieldName'] == field_name][0]
+		return field_value
+
+	def UpdateContactField(self, contact_id, field_name, value):
+		data = {
+			"Id" : contact_id,
+			"FieldValues" : [{
+				"FieldName" : field_name,
+				"Value" : value
+				}]
+			}
+		return self._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/Contacts/%d'%contact_id, data, method="PUT");
 
 	def SetContactMembership(self, contact_id, level_id):
 		contact = self.GetContactById(contact_id)
@@ -283,6 +305,11 @@ class WaApiClient(object):
 		event = self._make_api_request('Events/'+str(event_id))
 		return event
 
+	def GetFilteredEvents(self, filter):
+		url = 'Events?$filter=' + filter
+		events = self._make_api_request(url)
+		return events
+
 	def GetEventsByDate(self, start_date, end_date):
 		filter_string = "?$filter=StartDate+gt+"+ start_date + "+AND+StartDate+lt+"+end_date
 		events = self._make_api_request("Events/"+filter_string)
@@ -301,6 +328,9 @@ class WaApiClient(object):
 			url += '&includeEventDetails=true'
 		events = self._make_api_request(url)
 		return events
+
+	def GetPastEvents(self):
+		return self.GetFilteredEvents('IsUpcoming+eq+false')
 
 	def SetEventAccessControl(self, event_id, restricted=False, any_level=True, any_group=True, group_ids=[], level_ids=[]):
 		event = self.GetEventByID(event_id)
@@ -387,3 +417,45 @@ class WaApiClient(object):
 		log = self._make_api_request("AuditLogItems/?StartDate=2017-12-05&EndDate=2017-12-07")
 		return log
 
+##############################
+# MakeICT Specific
+##############################
+	def SetAuthorizations(self, contact_id, auth_list, date_list):
+		auth_map = {'Woodshop':416232,
+					'Metalshop':416231,
+					'Forge':420386,
+					'LaserCutter':416230,
+					'Mig welding':420387, 
+					'Tig welding':420388, 
+					'Stick welding':420389, 
+					'Manual mill':420390,           
+					'Plasma':420391, 
+					'Metal lathes':420392, 
+					'CNC Plasma':420393, 
+					'Intro Tormach':420394, 
+					'Full Tormach':420395}
+
+		auth_text = ''
+		auth_group_list = []
+
+		assert len(auth_list) == len(date_list), "List lengths don't match!"
+
+		for index, auth in enumerate(auth_list):
+			try:
+				auth_group_list.append(auth_map[auth])
+				auth_text += auth + '\t' + date_list[index] + '\n'
+				#print(auth_group_list)
+			except:
+				raise
+		self.SetMemberGroups(contact_id, auth_group_list)
+		auths = self.GetAuthorizations(contact_id)
+		auths = auths.strip()
+		if auths != '':
+			auth_text = '\n' + auth_text
+		auths += auth_text
+		self.UpdateContactField(contact_id, 'authorizations', auths)
+
+	def GetAuthorizations(self, contact_id):
+		#user = self.GetContactById(contact_id)
+		auths = self.GetContactField(contact_id, "authorizations")
+		return auths
