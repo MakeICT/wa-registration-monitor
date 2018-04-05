@@ -1,3 +1,0 @@
-[submodule "mcp-api"]
-	path = mcp-api
-	url = git@github.com:MakeICT/mcp-api.git
