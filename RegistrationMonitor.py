@@ -80,10 +80,7 @@ class ChildScript(Script):
 				else:
 					drop_date = event_start_date - self.noshow_drop
 					
-				if (self.config.getint('script','debug')==1):
-					toEmail = self.config.get('email', 'adminAddress')
-				else:
-					toEmail = registrantEmail
+				toEmail = registrantEmail
 
 				needs_email = False
 				db_entry = self.db.GetEntryByRegistrationID(ur['Id'])
@@ -120,21 +117,17 @@ class ChildScript(Script):
 									needs_email = True
 					
 						if needs_email: 
-							template.seek(0)
-							t = template.read().format(
-													 FirstName = ur['Contact']['Name'].split(',')[1], 
-														 EventName = ur['Event']['Name'].strip(),
-														 EventDate = event_start_date.strftime(self.time_format_string),
-														 UnpaidDropDate = drop_date.strftime(self.time_format_string),
-														 EnforcementDate = self.enforcement_date.strftime('%B %d, %Y'),
-														 CancellationWindow = self.unpaid_cutoff.days
-														 )
-							subject = t.split('----')[0]
-							message = t.split('----')[1]
-
+							replacements =	{"FirstName":ur['Contact']['Name'].split(',')[1], 
+											 "EventName":ur['Event']['Name'].strip(),
+											 "EventDate":event_start_date.strftime(self.time_format_string),
+											 "UnpaidDropDate":drop_date.strftime(self.time_format_string),
+											 "EnforcementDate":self.enforcement_date.strftime('%B %d, %Y'),
+											 "CancellationWindow":self.unpaid_cutoff.days}
+							template.seek(0)				 
+							subject = template.read().format(**replacements).split('----')[0]
 							self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 												   action="Send email with subject `%s`" %(subject.strip()))
-							self.mailer.send(toEmail, subject , message)
+							self.mailer.SendTemplate(toEmail, template , replacements, self.config.getboolean("script","debug"))
 
 	def SendEventReminders(self, events):
 		if events:
@@ -182,16 +175,13 @@ class ChildScript(Script):
 								registrant_first_name = r['Contact']['Name'].split(',')[1]
 								registrant_last_name = r['Contact']['Name'].split(',')[0]
 
-								if self.config.getint('script', 'debug') == 1:
-									toEmail = self.config.get('email', 'AdminAddress')
-								else:
-									toEmail = registrantEmail
+								toEmail = registrantEmail
 
 								replacements =  {'FirstName':registrant_first_name, 
 												 'EventName':event['Name'].strip(),
 												 'EventDate':event_start_date.strftime(self.time_format_string),
 												 'ReminderNumber':index}
-								self.mailer.SendTemplate(toEmail, template, replacements)
+								self.mailer.SendTemplate(toEmail, template, replacements, self.config.getboolean("script","debug"))
 								self.db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 											   action="Send event reminder email")
 						else: 

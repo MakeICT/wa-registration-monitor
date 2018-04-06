@@ -29,11 +29,14 @@ class MailBot():
     def setAdminAddress(self, addr):
         self.admin_address = addr
 
-    def send(self, to_addrs, subj, body):
+    def send(self, to_addrs, subj, body, test=False):
         if not self.display_name:
             from_field = self.email
         else:
             from_field = '"%s" <%s>' % (self.display_name, self.email)
+
+        if test:
+            to_addrs = self.admin_address
 
         if not type(to_addrs) == list:
             to_addrs = [to_addrs]
@@ -56,12 +59,12 @@ class MailBot():
             self.connect()
             self.server.sendmail(self.email, to_addrs, msg)
 
-    def SendTemplate(self, to_address, template, replacements):
+    def SendTemplate(self, to_address, template, replacements, test=False):
         template.seek(0)
         t = template.read().format(**replacements)
         subject = t.split('----')[0]
         message = t.split('----')[1]
-        self.send(to_address, subject , message)
+        self.send(to_address, subject , message, test)
 
     def check(self):
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
