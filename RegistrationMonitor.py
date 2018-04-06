@@ -14,40 +14,6 @@ class ChildScript(Script):
 		while(not self.WA_API.ConnectAPI(self.config.get('api','key'))):
 			time.sleep(5)
 
-	def Run(self):
-		self.tzlocal = tz.gettz('CST')
-
-		self.db = Database(self.config.get('database','name'),self.config.get('database','username'),self.config.get('database','password'))
-		#current_db = self.db.GetAll()
-		# for entry in current_db:
-			# print (entry)
-		# print(self.config.items('api'))
-		# print(self.config.items('thresholds'))
-
-		self.time_format_string = '%B %d, %Y at %I:%M%p'
-		self.unpaid_cutoff = timedelta(days=self.config.getint('thresholds','unpaidCutOff'))
-		self.unpaid_buffer = timedelta(hours=self.config.getint('thresholds', 'unpaidBuffer'))
-		self.noshow_drop = timedelta(minutes=self.config.getint('thresholds','noShowDrop'))
-		# self.poll_interval = self.config.getint('api','pollInterval')
-		self.nag_buffer = timedelta(minutes=self.config.getint('thresholds','nagBuffer'))
-		self.enforcement_date = datetime.strptime(self.config.get('thresholds','enforcementDate'),'%m-%d-%y %z')
-		self.reminders = len(self.config.get('thresholds', 'reminderDays').split(','))
-		self.reminders_days = []
-		for r in self.config.get('thresholds', 'reminderDays').split(','):
-			self.reminders_days.append(timedelta(days=int(r)))
-
-		self.mailer.setDisplayName(self.config.get('email', 'displayName'))
-		self.mailer.setAdminAddress(self.config.get('email', 'adminAddress'))
-
-		upcoming_events = self.WA_API.GetUpcomingEvents()
-		if upcoming_events == False:
-			api_call_failures += 1
-			print("API call Failures: %d" %(api_call_failures))
-
-		else:
-			self.ProcessUnpaidRegistrants(upcoming_events)
-			self.SendEventReminders(upcoming_events)
-
 	def CheckPendingPayment(self, registration):
 		for field in registration["RegistrationFields"]:
 			if field["FieldName"] == "StorageBinNumber":
@@ -242,6 +208,41 @@ class ChildScript(Script):
 		filtered_events = self.FilterClassesWithNoCheckinVolunteer(events)
 		for event in filtered_events:
 			pass
+
+	def Run(self):
+		self.tzlocal = tz.gettz('CST')
+
+		self.db = Database(self.config.get('database','name'),self.config.get('database','username'),self.config.get('database','password'))
+		#current_db = self.db.GetAll()
+		# for entry in current_db:
+			# print (entry)
+		# print(self.config.items('api'))
+		# print(self.config.items('thresholds'))
+
+		self.time_format_string = '%B %d, %Y at %I:%M%p'
+		self.unpaid_cutoff = timedelta(days=self.config.getint('thresholds','unpaidCutOff'))
+		self.unpaid_buffer = timedelta(hours=self.config.getint('thresholds', 'unpaidBuffer'))
+		self.noshow_drop = timedelta(minutes=self.config.getint('thresholds','noShowDrop'))
+		# self.poll_interval = self.config.getint('api','pollInterval')
+		self.nag_buffer = timedelta(minutes=self.config.getint('thresholds','nagBuffer'))
+		self.enforcement_date = datetime.strptime(self.config.get('thresholds','enforcementDate'),'%m-%d-%y %z')
+		self.reminders = len(self.config.get('thresholds', 'reminderDays').split(','))
+		self.reminders_days = []
+		for r in self.config.get('thresholds', 'reminderDays').split(','):
+			self.reminders_days.append(timedelta(days=int(r)))
+
+		self.mailer.setDisplayName(self.config.get('email', 'displayName'))
+		self.mailer.setAdminAddress(self.config.get('email', 'adminAddress'))
+
+		upcoming_events = self.WA_API.GetUpcomingEvents()
+		if upcoming_events == False:
+			api_call_failures += 1
+			print("API call Failures: %d" %(api_call_failures))
+
+		else:
+			self.ProcessUnpaidRegistrants(upcoming_events)
+			self.SendEventReminders(upcoming_events)
+
 
 s = ChildScript("New Registration Monitor")
 s.RunAndNotify()
