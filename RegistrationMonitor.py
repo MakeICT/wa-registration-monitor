@@ -79,15 +79,6 @@ class ChildScript(Script):
 		py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
 		return py_date
 
-	def SendEmail(self, to_address, template, replacements):
-		template.seek(0)
-		t = template.read().format(**replacements)
-		subject = t.split('----')[0]
-		message = t.split('----')[1]
-		self.mailer.send(to_address, subject , message)
-		# self.db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-		#              action="Send email with subject `%s`" %(subject.strip()))
-
 	def ProcessUnpaidRegistrants(self, events):
 			unpaid_registrants = []
 			for event in events:
@@ -239,7 +230,7 @@ class ChildScript(Script):
 												 'EventName':event['Name'].strip(),
 												 'EventDate':event_start_date.strftime(self.time_format_string),
 												 'ReminderNumber':index}
-								self.SendEmail(toEmail, template, replacements)
+								self.mailer.SendTemplate(toEmail, template, replacements)
 								self.db.AddLogEntry(event['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 											   action="Send event reminder email")
 						else: 
