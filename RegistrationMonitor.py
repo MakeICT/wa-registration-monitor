@@ -40,11 +40,6 @@ class ChildScript(Script):
 
 		return no_checkin_events
 
-	def ConvertWADate(self, wa_date):
-		fixed_date = wa_date[0:22]+wa_date[23:]
-		py_date = datetime.strptime(fixed_date, '%Y-%m-%dT%H:%M:%S%z')
-		return py_date
-
 	def ProcessUnpaidRegistrants(self, events):
 			unpaid_registrants = []
 			for event in events:
@@ -68,8 +63,8 @@ class ChildScript(Script):
 
 			for ur in unpaid_registrants:
 				registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
-				registration_date = self.ConvertWADate(ur['RegistrationDate'])
-				event_start_date = self.ConvertWADate(ur['Event']['StartDate'])
+				registration_date = self.WA_API.WADateToDateTime(ur['RegistrationDate'])
+				event_start_date = self.WA_API.WADateToDateTime(ur['Event']['StartDate'])
 				time_before_class = event_start_date - datetime.now(self.tzlocal)
 				registration_time_before_class = event_start_date - registration_date
 				time_since_registration = datetime.now(self.tzlocal) - registration_date
@@ -144,7 +139,7 @@ class ChildScript(Script):
 	def SendEventReminders(self, events):
 		if events:
 			for event in events:
-				event_start_date = self.ConvertWADate(event['StartDate'])
+				event_start_date = self.WA_API.WADateToDateTime(event['StartDate'])
 				time_before_class = event_start_date - datetime.now(self.tzlocal)
 
 				if not self.db.GetEntryByEventID(event['Id']):
@@ -181,7 +176,7 @@ class ChildScript(Script):
 						if registrants:
 							for r in registrants:
 								registrantEmail = [field['Value'] for field in r['RegistrationFields'] if field['SystemCode'] == 'Email']
-								registration_date = self.ConvertWADate(r['RegistrationDate'])
+								registration_date = self.WA_API.WADateToDateTime(r['RegistrationDate'])
 								registration_time_before_class = event_start_date - registration_date
 								time_since_registration = datetime.now(self.tzlocal) - registration_date
 								registrant_first_name = r['Contact']['Name'].split(',')[1]
