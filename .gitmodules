@@ -1,3 +1,6 @@
 [submodule "mcp_api"]
 	path = mcp_api
 	url = git@github.com:MakeICT/mcp_api.git
+[submodule "wildapricot_api"]
+	path = wildapricot_api
+	url = git@github.com:MakeICT/wildapricot_api.git
