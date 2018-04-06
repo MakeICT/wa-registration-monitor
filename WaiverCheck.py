@@ -11,18 +11,37 @@ from wildapricot_api import WaApiClient
 
 
 class ChildScript(Script):
-	def SetWaiverDate(self, contact_ID, date):
-		WA_API.UpdateContactField(contact_ID, 'WaiverDate', date)
-	
-	def SetDOB(self, contact_ID, date):
-			WA_API.UpdateContactField(contact_ID, 'DOB', date)
-
 	def Setup(self):
 		self.WA_API = WaApiClient()        
 		while(not self.WA_API.ConnectAPI(self.config.get('api','key'))):
 			time.sleep(5)
 
+	def SetWaiverDate(self, contact_ID, date):
+		self.WA_API.UpdateContactField(contact_ID, 'WaiverDate', date)
+	
+	def SetDOB(self, contact_ID, date):
+		self.WA_API.UpdateContactField(contact_ID, 'DOB', date)
+
+	def GetWaiverlessMembers(self):
+		contacts = self.WA_API.GetAllContacts()
+		waiverless_members=[]
+		for contact in contacts:
+			flattened_contact_fields = {field["SystemCode"]:field["Value"] for field in contact['FieldValues']}
+			if flattened_contact_fields["IsMember"]:
+				if flattened_contact_fields["MembershipLevelId"] != 813239:
+					# check for oldWaiverLink, Waiverlink, and WaiverDate field, respectively
+					# if not flattened_contact_fields["custom-7903153"]:
+					if flattened_contact_fields["custom-7973495"].strip()=='' and flattened_contact_fields["custom-9876059"].strip()=='':
+						waiverless_members.append(contact)
+		for member in waiverless_members:
+			print(member['FirstName'], member['LastName'])
+		print (len(waiverless_members))
+
 	def Run(self):
+		self.GetWaiverlessMembers()
+
+
+
 		script_start_time = datetime.now()
 
 		time_format_string = '%B %d, %Y at %I:%M%p'
@@ -37,8 +56,6 @@ class ChildScript(Script):
 		# Get a list of recent signed waivers for this account
 		summaries = sw.get_waiver_summaries(100)
 
-		# List waiver ID and title for each summary returned
-		print('List all waivers:\n')
 		for summary in summaries:
 			print("====================================")
 			print(summary.waiver_id + ': ' + summary.title)
@@ -71,7 +88,8 @@ class ChildScript(Script):
 			saved_waiver_date = [field['Value'] for field in contact['FieldValues'] if field['FieldName']=="WaiverDate"][0]
 			print("saved waiver date:", saved_waiver_date)
 			print("summary created_on date:", summary.created_on)
-			if saved_waiver_date:
+			if saved_waiver_date.strip() != '':
+				print("Has waiver date")
 				if datetime.strptime(saved_waiver_date, "%Y-%m-%d %H:%M:%S") >= datetime.strptime(summary.created_on, "%Y-%m-%d %H:%M:%S"):
 					continue
 
@@ -84,8 +102,9 @@ class ChildScript(Script):
 			#print(waiver_DOB)
 			#print(type(WA_ID))
 			#print(type(waiver_date))
-			script.SetWaiverDate(WA_ID, summary.created_on)
-			script.SetDOB(WA_ID, summary.dob)
+			self.SetWaiverDate(WA_ID, summary.created_on)
+			time.sleep(3)
+			self.SetDOB(WA_ID, summary.dob)
 
 
 			
