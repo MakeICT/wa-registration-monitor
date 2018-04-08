@@ -14,6 +14,8 @@ import urllib
 
 class ChildScript(Script):
 	def SendSurveys(self):
+		processed_ids = self.ReadProcessedIDs()
+		print(processed_ids)
 		start_date = (datetime.now() - timedelta(days=1)).replace(hour=0, minute=0, second=0)
 		end_date = (datetime.now() - timedelta(days=1)).replace(hour=23, minute=59, second=59)
 		print(start_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
@@ -29,23 +31,43 @@ class ChildScript(Script):
 			reg_info = []
 			for r in attended_registrants:
 				flattened_reg_fields = {field["SystemCode"]:field["Value"] for field in r['RegistrationFields']}
+				flattened_reg_fields['Id'] = r['Id']
+				print(r['Id'])
 				reg_info.append(flattened_reg_fields)
 			
 			for reg in reg_info:
+				if reg['Id'] in processed_ids:
+					print("This registration has already been processed!")
+					continue
+				# for field in reg:
+				# 	print(field, reg[field])
 				replacements =  {
 					'FirstName':reg['FirstName'], 
 					'EventName':event['Name'].strip(),
 					'SurveyLink':survey_link,
 					# 'EventDate':event['Startdate'].strftime(self.time_format_string),
 				}
-				self.mailer.SendTemplate('christian@makeict.org', template, replacements)
+				self.mailer.SendTemplate(reg['Email'], template, replacements, test=True)
+				self.WriteProcessedID(reg['Id'])
 				print(event["Name"])
 				print(survey_link)
+
+
+	def WriteProcessedID(self, id):
+		with open(self.processed_filename, 'a') as f:
+			f.write(str(id) + '\n')
+
+
+	def ReadProcessedIDs(self):
+		with open(self.processed_filename, 'r') as f:
+			id_list = [int(line.rstrip('\n')) for line in f]
+		return id_list
 
 	def Setup(self):
 		self.WA_API = WaApiClient()        
 		while(not self.WA_API.ConnectAPI(self.config.get('api','key'))):
 			time.sleep(5)
+		self.processed_filename = "followup_processed.txt"
 
 	def Run(self):
 		self.SendSurveys()
