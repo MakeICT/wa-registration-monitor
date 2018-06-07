@@ -97,7 +97,6 @@ class ChildScript(Script):
 								template = open(self.config.get('files', 'pre-warningTemplate'), 'r')
 							else:
 								template = open(self.config.get('files', 'warningTemplate'), 'r')
-							#nag_list.append(ur['Id'])
 							self.db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
 							self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 										   action="Add unpaid registration to nag database.")
@@ -108,9 +107,9 @@ class ChildScript(Script):
 							if time_before_class < self.unpaid_cutoff:
 								if(registration_date > self.enforcement_date):
 									print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
-									self.WA_API.DeleteRegistration(ur['Id'])
+									if(not self.config.getboolean("script","debug")):
+										self.WA_API.DeleteRegistration(ur['Id'])
 									template = open(self.config.get('files', 'cancellationTemplate'), 'r')
-									#delete_list.append(ur['Id'])
 									self.db.AddLogEntry(ur['Event']['Name'].strip(), ur['Contact']['Name'], registrantEmail[0],
 												   action="Delete registration")
 									self.db.SetRegistrationDeleted(ur['Id'])
@@ -125,9 +124,9 @@ class ChildScript(Script):
 											 "CancellationWindow":self.unpaid_cutoff.days}
 							template.seek(0)				 
 							subject = template.read().format(**replacements).split('----')[0]
+							success = self.mailer.SendTemplate(toEmail, template , replacements, self.config.getboolean("script","debug"))
 							self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 												   action="Send email with subject `%s`" %(subject.strip()))
-							self.mailer.SendTemplate(toEmail, template , replacements, self.config.getboolean("script","debug"))
 
 	def SendEventReminders(self, events):
 		if events:
@@ -219,6 +218,8 @@ class ChildScript(Script):
 		self.mailer.setDisplayName(self.config.get('email', 'displayName'))
 		self.mailer.setAdminAddress(self.config.get('email', 'adminAddress'))
 
+		api_call_failures=0
+
 		upcoming_events = self.WA_API.GetUpcomingEvents()
 		if upcoming_events == False:
 			api_call_failures += 1
@@ -228,6 +229,6 @@ class ChildScript(Script):
 			self.ProcessUnpaidRegistrants(upcoming_events)
 			self.SendEventReminders(upcoming_events)
 
-
-s = ChildScript("New Registration Monitor")
-s.RunAndNotify()
+if __name__ == "__main__":
+	s = ChildScript("New Registration Monitor")
+	s.RunAndNotify()
