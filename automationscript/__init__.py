@@ -10,7 +10,7 @@ import configparser
 
 # from WildApricotAPI.WildApricotAPI import WaApiClient
 from mailer import MailBot
-# from Database import Database
+# from database import Database
 
 
 class Script(object):
@@ -49,12 +49,12 @@ class Script(object):
 
 		except Exception as e:
 			message = "The following exception was thrown:\r\n\r\n" + str(e) + "\r\n\r\n" + traceback.format_exc()
-			self.mailer.send([self.config.get('email', 'adminAddress')], self.name + " has crashed!", message)
+			# self.mailer.send([self.config.get('email', 'adminAddress')], self.name + " has crashed!", message)
 			raise
 
 		else:
 			message = "The script '%s' ran successfully" % (self.name)
-			self.mailer.send([self.config.get('email', 'adminAddress')], self.name + " ran successfully", message)
+			# self.mailer.send([self.config.get('email', 'adminAddress')], self.name + " ran successfully", message)
 
 	def Setup(self):
 		pass

@@ -35,11 +35,13 @@ class MailBot():
         else:
             from_field = '"%s" <%s>' % (self.display_name, self.email)
 
-        if test:
-            to_addrs = self.admin_address
-
         if not type(to_addrs) == list:
             to_addrs = [to_addrs]
+        if test:
+            to_addrs = [self.admin_address]
+        # else:
+        #     to_addrs.append(self.admin_address)
+
         msg = "\r\n".join([
             "From: " + from_field,
             "To: " + ",".join(to_addrs),
@@ -53,11 +55,18 @@ class MailBot():
             # if self.admin_address:
             #   to_addrs.append(self.admin_address)
             self.server.sendmail(self.email, to_addrs, msg)
+            return True
         except smtplib.SMTPSenderRefused:
-            #print("\n===server timeout====\n")
-            self.disconnect()
-            self.connect()
-            self.server.sendmail(self.email, to_addrs, msg)
+            try:
+                print("\n====SMTP Sender Refused====\n")
+                self.disconnect()
+                self.connect()
+                self.server.sendmail(self.email, to_addrs, msg)
+                return True
+            except smtplib.SMTPSenderRefused as e:
+                raise e
+                return False
+
 
     def SendTemplate(self, to_address, template, replacements, test=False):
         template.seek(0)
