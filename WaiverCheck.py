@@ -5,6 +5,7 @@ from automationscript import Script
 from datetime import datetime, date
 from datetime import timedelta
 
+import time
 import smartwaiver
 from wildapricot_api import WaApiClient
 
@@ -38,9 +39,9 @@ class ChildScript(Script):
 		print (len(waiverless_members))
 
 	def Run(self):
-		self.GetWaiverlessMembers()
+		# self.GetWaiverlessMembers()
 
-
+		# assert 1==2, "math fail!"
 
 		script_start_time = datetime.now()
 
@@ -48,10 +49,10 @@ class ChildScript(Script):
 
 		sw = smartwaiver.Smartwaiver(self.config.get('smartwaiver', 'api_key'))
 
-		templates = sw.get_waiver_templates()
+		# templates = sw.get_waiver_templates()
 
-		for template in templates:
-			print(template.template_id + ': ' + template.title)
+		# for template in templates:
+		# 	print(template.template_id + ': ' + template.title)
 
 		# Get a list of recent signed waivers for this account
 		summaries = sw.get_waiver_summaries(100)
@@ -59,7 +60,7 @@ class ChildScript(Script):
 		for summary in summaries:
 			print("====================================")
 			print(summary.waiver_id + ': ' + summary.title)
-			# print(summary.tags)
+
 			WA_ID = None
 			print(summary.first_name, summary.last_name)
 
@@ -67,28 +68,34 @@ class ChildScript(Script):
 				if tag.split(' ')[0]=='WA_ID':
 					WA_ID = int(tag.split(' ')[1])
 
-			if WA_ID:
-				pass
+			waiver = sw.get_waiver(summary.waiver_id, True)
+			
+			if not WA_ID and summary.is_minor:
+				print("Skipping untagged minor waiver")
+				continue
 
 			else:
-				waiver = sw.get_waiver(summary.waiver_id, True)
 				try:
 					#Pull contact's info from WA if it exists
-					contact = self.WA_API.GetContactByEmail(waiver.email)[0]
+					if WA_ID:
+						contact = self.WA_API.GetContactById(WA_ID)
+					else:
+						contact = self.WA_API.GetContactByEmail(waiver.email)[0]
+						WA_ID = contact['Id']
 					#print(contact)
-
-					WA_ID = contact['Id']
 
 				#If query returns no contact
 				except IndexError:
 					print("Contact does not exist")
 					continue
+			
 
 			#If waiver date is not newer than what is currently on the WA profile, don't update
 			saved_waiver_date = [field['Value'] for field in contact['FieldValues'] if field['FieldName']=="WaiverDate"][0]
+			print(contact['Email'])
 			print("saved waiver date:", saved_waiver_date)
 			print("summary created_on date:", summary.created_on)
-			if saved_waiver_date.strip() != '':
+			if saved_waiver_date and  saved_waiver_date.strip() != '':
 				print("Has waiver date")
 				if datetime.strptime(saved_waiver_date, "%Y-%m-%d %H:%M:%S") >= datetime.strptime(summary.created_on, "%Y-%m-%d %H:%M:%S"):
 					continue
@@ -110,12 +117,13 @@ class ChildScript(Script):
 			
 			#print(waiver.pdf)
 
-s = ChildScript("Waiver Check")
-s.RunAndNotify()
+if __name__ == "__main__":
+	s = ChildScript("Waiver Check")
+	s.RunAndNotify()
 
 
 
-#Send waiver email if no waiver
-#   -When a new member signs up
-#   -When somebody registers for an event
-#   -Periodically when a member doesn't have a current waiver (rate limit)
+	# Send waiver email if no waiver
+	#   -When a new member signs up
+	#   -When somebody registers for an event
+	#   -Periodically when a member doesn't have a current waiver (rate limit)
