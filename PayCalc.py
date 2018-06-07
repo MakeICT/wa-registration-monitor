@@ -8,8 +8,9 @@ import urllib
 import configparser
 #import MySQLdb
 
-from WildApricotAPI.WildApricotAPI import WaApiClient
-from MailBot.mailer import MailBot
+# from WildApricotAPI.WildApricotAPI import WaApiClient
+from wildapricot_api import WaApiClient
+from mailer import MailBot
 #from Database import Database
 
 #os.chdir(config.get('files', 'installDirectory'))
@@ -75,7 +76,7 @@ try:
 	# end_date = datetime(2018, 3, 1)
 
 	start_date = datetime.today()
-	start_date = start_date.replace(day=1, month=((start_date.month+10)%12)+1, hour=0, minute=0, second=0, microsecond=0)
+	start_date = start_date.replace(day=1, month=((start_date.month+10)%12)+2, hour=0, minute=0, second=0, microsecond=0)
 	if start_date.month == 12:
 		start_date = start_date.replace(year=start_date.year-1)
 	print(start_date)
@@ -87,51 +88,58 @@ try:
 		end_date = end_date.replace(year=end_date.year+1)
 	print(end_date)
 
-	print("\n=================================================")
-	print("Voided Event Invoices")
-	print("=================================================")
+	# print("\n=================================================")
+	# print("Voided Event Invoices")
+	# print("=================================================")
 
-	invoice_start_date = start_date - timedelta(days=90)
-	s = invoice_start_date.strftime("%Y-%m-%d")
-	invoices = WA_API.GetInvoicesByDate(invoice_start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
-	void_event_invoices = []
-	for invoice in invoices:
-		try:
-			if invoice['OrderType'] == 'EventRegistration':
-				invoice_date = datetime.strptime(invoice['CreatedDate'], '%Y-%m-%dT%H:%M:%S')
-				void_date = datetime.strptime(invoice['VoidedDate'], '%Y-%m-%dT%H:%M:%S')
-				invoice_with_details = WA_API.GetInvoiceByID(invoice['Id'])
-				if "Registration was canceled" in invoice_with_details['Memo']:
-					for detail in invoice_with_details["OrderDetails"]:
-						print(detail)
-						try: 
-							detail['Notes'].index("Registration for")
-							event_date = detail['Notes'].split('(')[1].split(',')[0].split('-')[0].strip()
-							event_date = datetime.strptime(event_date, '%d %b %Y %H:%M %p')
-						except:
-							print(detail)
-						#print(event_date)
-					#print(void_date)
-					if event_date >= start_date and event_date <= end_date:
-						delta = event_date-void_date
-						cancel_delta = void_date - invoice_date
-						refundable = False
+	# invoice_start_date = start_date - timedelta(days=90)
+	# s = invoice_start_date.strftime("%Y-%m-%d")
+	# invoices = WA_API.GetInvoicesByDate(invoice_start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+	# void_event_invoices = []
+	# for invoice in invoices:
+	# 	try:
+	# 		if invoice['OrderType'] == 'EventRegistration':
+	# 			invoice_date = datetime.strptime(invoice['CreatedDate'], '%Y-%m-%dT%H:%M:%S')
+	# 			void_date = datetime.strptime(invoice['VoidedDate'], '%Y-%m-%dT%H:%M:%S')
+	# 			invoice_with_details = WA_API.GetInvoiceByID(invoice['Id'])
+	# 			if "Registration was canceled" in invoice_with_details['Memo']:
+	# 				for detail in invoice_with_details["OrderDetails"]:
+	# 					# print(detail)
+	# 					detail['Notes'].index("Registration for")
+	# 					split_notes = detail['Notes'].split('(')
+	# 					event_date = None
+	# 					for possible_date in split_notes:
+	# 						try:
+	# 							event_date = datetime.strptime(possible_date.split(',')[0].split('-')[0].strip(), '%d %b %Y %H:%M %p')
+	# 						except:
+	# 							print(possible_date)
 
-						if (delta.days >= refund_cutoff) or ((cancel_delta.seconds + cancel_delta.days*24*60*60)  < refund_grace_hours*60*60):
-							if delta.days >= refund_min_days:
-								refundable = True
-						print("Refundable:", refundable)
-						print("Invoice ID:", invoice["Id"])
-						print("Invoice voided", delta, "before event start")
-						print("Invoice Amount:",invoice_with_details["OrderDetails"][0]["Value"])
-						print(invoice_with_details["OrderDetails"][0]["Notes"])
-						print("--------------------------------------------")
+	# 					#print(event_date)
+	# 				#print(void_date)
+	# 				# print(type(event_date))
+	# 				# print(event_date)
+	# 				# print(type(start_date))
+	# 				# print(type(end_date))
+	# 				if event_date >= start_date and event_date <= end_date:
+	# 					delta = event_date-void_date
+	# 					cancel_delta = void_date - invoice_date
+	# 					refundable = False
+
+	# 					if (delta.days >= refund_cutoff) or ((cancel_delta.seconds + cancel_delta.days*24*60*60)  < refund_grace_hours*60*60):
+	# 						if delta.days >= refund_min_days:
+	# 							refundable = True
+	# 					print("Refundable:", refundable)
+	# 					print("Invoice ID:", invoice["Id"])
+	# 					print("Invoice voided", delta, "before event start")
+	# 					print("Invoice Amount:",invoice_with_details["OrderDetails"][0]["Value"])
+	# 					print(invoice_with_details["OrderDetails"][0]["Notes"])
+	# 					print("--------------------------------------------")
 
 
-						void_event_invoices.append(invoice)
+	# 					void_event_invoices.append(invoice)
 					
-		except KeyError:
-			pass
+		# except KeyError:
+		# 	pass
 	print('\n')
 
 
@@ -191,14 +199,18 @@ try:
 				elif registrant['RegistrationType']['Name'].lower() == 'non-members':
 					if not safety_class:
 						total_facility_fees += regular_facility_fee
-						total_instructor_fees += int(registrant['RegistrationFee']) - regular_facility_fee
+						instructor_fee = int(registrant['RegistrationFee']) - regular_facility_fee
+						if instructor_fee < 0:
+							print("!!NEGATIVE INSTRUCTOR FEE!!")
+							instructor_fee = 0
+						total_instructor_fees += instructor_fee
 					else:
 						total_facility_fees += safety_facility_fee
 				else:
-					print("Unhandled Registration Type!!")
+					print("!!Unhandled Registration Type!!")
 
 		
-		class_duration = (WA_API.ConvertWADate(event["EndDate"])-WA_API.ConvertWADate(event["StartDate"]))/ timedelta(hours=1)
+		class_duration = (WA_API.WADateToDateTime(event["EndDate"])-WA_API.WADateToDateTime(event["StartDate"]))/ timedelta(hours=1)
 
 		# print('-----------------------------------------')
 		# print(event["Name"])
