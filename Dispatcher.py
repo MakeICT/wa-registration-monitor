@@ -10,7 +10,7 @@ from apscheduler.events import *
 from mailer import MailBot
 
 #import scripts to run
-import test
+#import test
 import WaiverCheck
 import SendClassFollowup
 import RegistrationMonitor
@@ -21,7 +21,7 @@ waiver_check = WaiverCheck.ChildScript('Waiver Check')
 class_followup = SendClassFollowup.ChildScript('Class Followup')
 registration_monitor = RegistrationMonitor.ChildScript('Registration Monitor')
 
-test = test.ChildScript('test job')
+#test = test.ChildScript('test job')
 
 start_time = datetime.now()
 config = configparser.SafeConfigParser()

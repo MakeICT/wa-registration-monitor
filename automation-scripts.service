@@ -1,0 +1,11 @@
+
+[Unit]
+Description=Automation Scripts
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/code/automation-scripts/Dispatcher.py
+WorkingDirectory=/home/pi/code/automation-scripts
+Restart=always
+[Install]
+WantedBy=multi-user.target
+
