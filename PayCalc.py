@@ -76,7 +76,7 @@ try:
 	# end_date = datetime(2018, 3, 1)
 
 	start_date = datetime.today()
-	start_date = start_date.replace(day=1, month=((start_date.month+10)%12)+2, hour=0, minute=0, second=0, microsecond=0)
+	start_date = start_date.replace(day=1, month=((start_date.month+10)%12)+1, hour=0, minute=0, second=0, microsecond=0)
 	if start_date.month == 12:
 		start_date = start_date.replace(year=start_date.year-1)
 	print(start_date)
