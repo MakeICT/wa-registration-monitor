@@ -62,7 +62,7 @@ scheduler.add_listener(result_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 job1=scheduler.add_job(waiver_check.Run, 'interval', minutes=60)
 job2=scheduler.add_job(registration_monitor.Run, 'interval', minutes=10)
 job3=scheduler.add_job(class_followup.Run, 'cron', hour=12)
-job4=scheduler.add_job(archiver, 'cron', hour=1)
+job4=scheduler.add_job(archiver.Run, 'cron', hour=1)
 # print(job1)
 # print(job2)
 
