@@ -51,7 +51,7 @@ class ChildScript(Script):
 					'SurveyLink':survey_link,
 					# 'EventDate':event['Startdate'].strftime(self.time_format_string),
 				}
-				self.mailer.SendTemplate(reg['Email'], template, replacements, test=False)
+				self.mailer.SendTemplate(reg['Email'], template, replacements, test=self.config.getboolean("script","debug"))
 				self.WriteProcessedID(reg['Id'])
 				print(event["Name"])
 				print(survey_link)
