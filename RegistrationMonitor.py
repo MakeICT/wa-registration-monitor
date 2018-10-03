@@ -140,6 +140,23 @@ class ChildScript(Script):
 					self.db.AddLogEntry(event['Name'].strip(), None, None,
 							   action="Add event `%s` to database" %(event['Name'].strip()))
 
+					for tag in event['Tags']:
+						split_tag = tag.split(':')
+						if split_tag[0] == 'instructor_name':
+							instructor_name = ' '.join(split_tag[1:])
+						elif split_tag[0] == 'instructor_email':
+							instructor_email = ' '.join(split_tag[1:])
+
+					if(instructor_email):
+						template = open(self.config.get('files', 'classConfirmation'), 'r')
+						replacements =  {'FirstName':instructor_name.split()[0], 
+										 'EventName':event['Name'].strip(),
+										 'EventDate':event_start_date.strftime(self.time_format_string),
+										}
+						self.mailer.SendTemplate(instructor_email, template, replacements, self.config.getboolean("script","debug"))
+						self.db.AddLogEntry(event['Name'].strip(), instructor_name, instructor_email,
+									   action="Send class confirmation email")
+
 				index = 1
 				for r in self.reminders_days:
 					needs_email = False
@@ -185,7 +202,7 @@ class ChildScript(Script):
 											   action="Send event reminder email")
 						else: 
 							print("Failed to get registrant list")
-
+                                                
 					index+=1
 
 	def ProcessEventsWithNoCheckinVolunteer(self, events):

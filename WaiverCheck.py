@@ -68,28 +68,50 @@ class ChildScript(Script):
 				if tag.split(' ')[0]=='WA_ID':
 					WA_ID = int(tag.split(' ')[1])
 
-			waiver = sw.get_waiver(summary.waiver_id, True)
+			sw_fails = 0
+			while(1):
+				try:
+					waiver = sw.get_waiver(summary.waiver_id, True)
+					break
+				except (smartwaiver.exceptions.SmartwaiverHTTPException, smartwaiver.exceptions.SmartwaiverSDKException):
+					print("Smartwaiver Error")
+					sw_fails += 1
+					if sw_fails > 3:
+						raise
+					else:
+						time.sleep(5)
+						continue
+
+
+			contact=None
 			
 			if not WA_ID and summary.is_minor:
 				print("Skipping untagged minor waiver")
 				continue
 
 			else:
-				try:
-					#Pull contact's info from WA if it exists
-					if WA_ID:
-						contact = self.WA_API.GetContactById(WA_ID)
-					else:
-						contact = self.WA_API.GetContactByEmail(waiver.email)[0]
-						WA_ID = contact['Id']
-					#print(contact)
+				while(1):
+					try:
+						#Pull contact's info from WA if it exists
+						if WA_ID:
+							contact = self.WA_API.GetContactById(WA_ID)
+						else:
+							contact = self.WA_API.GetContactByEmail(waiver.email)[0]
+							WA_ID = contact['Id']
+						break
+						#print(contact)
 
-				#If query returns no contact
-				except IndexError:
-					print("Contact does not exist")
-					continue
+					#If query returns no contact
+					except IndexError:
+						print("Contact does not exist")
+						break
+					except TypeError:
+						print("Failed to connect to WA")
+						time.sleep(60)
+						continue
 			
-
+			if not contact:
+				continue
 			#If waiver date is not newer than what is currently on the WA profile, don't update
 			saved_waiver_date = [field['Value'] for field in contact['FieldValues'] if field['FieldName']=="WaiverDate"][0]
 			print(contact['Email'])

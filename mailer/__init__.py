@@ -15,6 +15,7 @@ class MailBot():
         self.server.ehlo()
         #self.server.starttls()
         self.server.login(self.email, self.password)
+        print(self.server)
 
     def disconnect(self):
         try:
@@ -50,6 +51,7 @@ class MailBot():
             body
         ])
         if self.server == None:
+            print("Connecting")
             self.connect()
         try:
             # if self.admin_address:

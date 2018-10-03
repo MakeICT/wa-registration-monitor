@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from wildapricot_api import WaApiClient
 
-import urllib
+import urllib, time
 
 class ChildScript(Script):
     def Setup(self):

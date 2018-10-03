@@ -9,8 +9,8 @@ import configparser
 #import MySQLdb
 
 from mcp_api import McpApiClient
-from WildApricotAPI.WildApricotAPI import WaApiClient
-from MailBot.mailer import MailBot
+from wildapricot_api import WaApiClient
+from mailer import MailBot
 #from Database import Database
 
 #os.chdir(config.get('files', 'installDirectory'))
