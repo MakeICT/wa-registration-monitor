@@ -1,0 +1,14 @@
+Class Confirmation - "{EventName}" on {EventDate}
+----
+Hello {FirstName},
+
+
+Your class, "{EventName}" on {EventDate}, has been scheduled.
+
+Thanks for teaching classes at MakeICT! If you have any questions, please send them in reply to this email.
+
+
+
+Sincerely,
+
+MakeICT Event Team
