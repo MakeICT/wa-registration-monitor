@@ -52,7 +52,7 @@ config.read('config.ini')
 print(config.items('api'))
 print(config.items('thresholds'))
 
-MCP_API = McpApiClient()
+MCP_API = McpApiClient(config.get('mcp_api','server'))
 MCP_API.authenticate_with_contact_credentials(config.get('mcp_api', 'username'), config.get('mcp_api','password'))
 
 WA_API = WaApiClient()
