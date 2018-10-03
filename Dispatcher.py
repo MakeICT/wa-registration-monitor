@@ -15,6 +15,7 @@ import WaiverCheck
 import SendClassFollowup
 import RegistrationMonitor
 import ArchiveInactive
+import SyncDiscourseGroups
 
 print("Scripts imported")
 
@@ -22,6 +23,7 @@ waiver_check = WaiverCheck.ChildScript('Waiver Check')
 class_followup = SendClassFollowup.ChildScript('Class Followup')
 registration_monitor = RegistrationMonitor.ChildScript('Registration Monitor')
 archiver = ArchiveInactive.ChildScript('Archiver')
+discourse_sync = SyncDiscourseGroups.ChildScript('Discourse Sync')
 
 #test = test.ChildScript('test job')
 
@@ -63,6 +65,7 @@ job1=scheduler.add_job(waiver_check.Run, 'interval', minutes=60)
 job2=scheduler.add_job(registration_monitor.Run, 'interval', minutes=10)
 job3=scheduler.add_job(class_followup.Run, 'cron', hour=12)
 job4=scheduler.add_job(archiver.Run, 'cron', hour=1)
+job4=scheduler.add_job(discourse_sync.Run, 'cron', hour=4)
 # print(job1)
 # print(job2)
 

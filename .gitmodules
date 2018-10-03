@@ -4,3 +4,6 @@
 [submodule "wildapricot_api"]
 	path = wildapricot_api
 	url = git@github.com:MakeICT/wildapricot_api.git
+[submodule "pydiscourse"]
+	path = pydiscourse
+	url = git@github.com:MakeICT/pydiscourse.git
