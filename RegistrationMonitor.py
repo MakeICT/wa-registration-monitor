@@ -83,6 +83,7 @@ class ChildScript(Script):
 				toEmail = registrantEmail
 
 				needs_email = False
+				delete_registration = False
 				db_entry = self.db.GetEntryByRegistrationID(ur['Id'])
 				if not db_entry:
 					new_registration = True
@@ -92,28 +93,18 @@ class ChildScript(Script):
 				if not self.CheckPendingPayment(ur):
 					if(time_since_registration > self.nag_buffer):
 						if new_registration:
-							print ("Sending nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
 							if(registration_date < self.enforcement_date):
 								template = open(self.config.get('files', 'pre-warningTemplate'), 'r')
 							else:
 								template = open(self.config.get('files', 'warningTemplate'), 'r')
-							self.db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
-							self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
-										   action="Add unpaid registration to nag database.")
-							self.db.SetFirstNagSent(ur['Id'])
 							needs_email = True
 
 						elif time_since_registration > self.unpaid_buffer:
 							if time_before_class < self.unpaid_cutoff:
 								if(registration_date > self.enforcement_date):
-									print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
-									if(not self.config.getboolean("script","debug")):
-										self.WA_API.DeleteRegistration(ur['Id'])
 									template = open(self.config.get('files', 'cancellationTemplate'), 'r')
-									self.db.AddLogEntry(ur['Event']['Name'].strip(), ur['Contact']['Name'], registrantEmail[0],
-												   action="Delete registration")
-									self.db.SetRegistrationDeleted(ur['Id'])
 									needs_email = True
+									delete_registration = True
 					
 						if needs_email: 
 							replacements =	{"FirstName":ur['Contact']['Name'].split(',')[1], 
@@ -125,6 +116,23 @@ class ChildScript(Script):
 							template.seek(0)				 
 							subject = template.read().format(**replacements).split('----')[0]
 							success = self.mailer.SendTemplate(toEmail, template , replacements, self.config.getboolean("script","debug"))
+
+							# perform actions indicated in email
+							if new_registration:
+								print ("Sent nag email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
+								self.db.AddEntry(registrant_first_name, registrant_last_name, registrantEmail[0], ur['Contact']['Id'], ur['Id'])
+								self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+											   action="Add unpaid registration to nag database.")
+								self.db.SetFirstNagSent(ur['Id'])
+
+							elif delete_registration:
+									print('Deleting registration %d and notifying %s'%(ur['Id'],ur['Contact']['Name']))
+									if(not self.config.getboolean("script","debug")):
+										self.WA_API.DeleteRegistration(ur['Id'])
+									self.db.AddLogEntry(ur['Event']['Name'].strip(), ur['Contact']['Name'], registrantEmail[0],
+														action="Delete registration")
+									self.db.SetRegistrationDeleted(ur['Id'])
+
 							self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
 												   action="Send email with subject `%s`" %(subject.strip()))
 
