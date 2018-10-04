@@ -2,30 +2,12 @@ import logging
 import mailer
 import configparser
 from datetime import datetime
-import os
+import os, sys, traceback
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.events import *
 
 from mailer import MailBot
-
-#import scripts to run
-#import test
-import WaiverCheck
-import SendClassFollowup
-import RegistrationMonitor
-import ArchiveInactive
-import SyncDiscourseGroups
-
-print("Scripts imported")
-
-waiver_check = WaiverCheck.ChildScript('Waiver Check')
-class_followup = SendClassFollowup.ChildScript('Class Followup')
-registration_monitor = RegistrationMonitor.ChildScript('Registration Monitor')
-archiver = ArchiveInactive.ChildScript('Archiver')
-discourse_sync = SyncDiscourseGroups.ChildScript('Discourse Sync')
-
-#test = test.ChildScript('test job')
 
 start_time = datetime.now()
 config = configparser.SafeConfigParser()
@@ -36,8 +18,35 @@ mailer = MailBot(config.get('email','username'), config.get('email','password'))
 mailer.setDisplayName(config.get('email', 'displayName'))
 mailer.setAdminAddress(config.get('email', 'adminAddress'))
 
-message = "Dispatcher started"
-mailer.send([config.get('email', 'adminAddress')], "Dispatcher script has restarted!", message)
+try:
+    #import scripts to run
+    #import test
+    import WaiverCheck
+    import SendClassFollowup
+    import RegistrationMonitor
+    import ArchiveInactive
+    import SyncDiscourseGroups
+
+    print("Scripts imported")
+
+    waiver_check = WaiverCheck.ChildScript('Waiver Check')
+    class_followup = SendClassFollowup.ChildScript('Class Followup')
+    registration_monitor = RegistrationMonitor.ChildScript('Registration Monitor')
+    archiver = ArchiveInactive.ChildScript('Archiver')
+    discourse_sync = SyncDiscourseGroups.ChildScript('Discourse Sync')
+
+    #test = test.ChildScript('test job')
+
+
+
+    message = "Dispatcher started"
+    mailer.send([config.get('email', 'adminAddress')], "Dispatcher script has restarted!", message)
+
+except Exception as e:
+    message = traceback.format_exc()
+    mailer.send([config.get('email', 'adminAddress')], "Dispatcher script has crashed!", message)
+    sys.exit()
+
 
 def result_listener(event):
     if event.exception:
