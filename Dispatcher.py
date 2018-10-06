@@ -35,10 +35,6 @@ try:
     archiver = ArchiveInactive.ChildScript('Archiver')
     discourse_sync = SyncDiscourseGroups.ChildScript('Discourse Sync')
 
-    #test = test.ChildScript('test job')
-
-
-
     message = "Dispatcher started"
     mailer.send([config.get('email', 'adminAddress')], "Dispatcher script has restarted!", message)
 

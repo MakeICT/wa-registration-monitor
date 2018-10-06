@@ -7,9 +7,9 @@ Please use the link below to fill out an eWaiver for your upcoming event "{Event
 
 https://www.smartwaiver.com/w/5a7371cfedd7b/web/?wautofill_tag=WA_ID:{UserID}
 
-This waiver must be filled out prior to participating in the event. You can also fill it out at the kiosk when you check in for the event, but completing it now saves time on the day of the event and gives you one less thing to worry about.
+Your are receiving this email because you either do not have a waiver on file, or your waiver is outdated. This waiver must be filled out prior to participating in any activity at MakeICT. You can also fill it out when you check in for the event, but completing it now saves time on the day of the event and helps the process run more smoothly.
 
 
-Sincerely,
+Thanks,
 
 MakeICT Event Team

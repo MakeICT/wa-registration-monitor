@@ -14,12 +14,12 @@ class ChildScript(Script):
 		while(not self.WA_API.ConnectAPI(self.config.get('api','key'))):
 			time.sleep(5)
 
-	def CheckPendingPayment(self, registration):
-		for field in registration["RegistrationFields"]:
-			if field["FieldName"] == "StorageBinNumber":
-				if field["Value"] == "PendingPayment":
-					return True
-		return False
+	# def CheckPendingPayment(self, registration):
+	# 	for field in registration["RegistrationFields"]:
+	# 		if field["FieldName"] == "StorageBinNumber":
+	# 			if field["Value"] == "PendingPayment":
+	# 				return True
+	# 	return False
 
 	def FilterClassesWithNoCheckinVolunteer(self, events):
 		if events == False:
@@ -39,6 +39,73 @@ class ChildScript(Script):
 				print(event['Name'].strip() + " has no checkin volunteer.")
 
 		return no_checkin_events
+
+	def SendWaiverReminders(self, events):
+			unwaivered_registrants = []
+			for event in events:
+				registrants = self.WA_API.GetRegistrantsByEventID(event['Id'])
+				if registrants == False:
+					return False
+				# print(event)
+				print('\n' + event["Name"].strip() + "(" + event["StartDate"] + ")" + ": " + str(event["PendingRegistrationsCount"]))
+				for registrant in registrants:
+					print(registrant['Contact']['Name'])
+					def GetSubField(object, field, subfield):
+						try:
+							list_comp = [f["Value"] for f in object[field] if f["FieldName"] == subfield]
+							print(list_comp)
+							return list_comp[0]
+						except IndexError:
+							print("Field '%s' Not Found" % subfield)
+
+					def GetRegistrationField(registration, field):
+						return GetSubField(registration, "RegistrationFields", field)
+
+					if not GetRegistrationField(registrant, "WaiverDate") and not GetRegistrationField(registrant, "WaiverLink"):
+						contact = self.WA_API.GetContactById(registrant['Contact']['Id'])
+
+						def GetContactField(contact, field):
+							return GetSubField(contact, "FieldValues", field)
+
+						if not GetContactField(contact, "WaiverDate") and not GetContactField(contact, "WaiverLink"):
+							unwaivered_registrants.append(registrant)
+
+						#print(registrant['RegistrationFields'])
+						#print (registrant)
+
+			for ur in unwaivered_registrants:
+				registrantEmail = [field['Value'] for field in ur['RegistrationFields'] if field['SystemCode'] == 'Email']
+				registration_date = self.WA_API.WADateToDateTime(ur['RegistrationDate'])
+				event_start_date = self.WA_API.WADateToDateTime(ur['Event']['StartDate'])
+				time_before_class = event_start_date - datetime.now(self.tzlocal)
+				registration_time_before_class = event_start_date - registration_date
+				time_since_registration = datetime.now(self.tzlocal) - registration_date
+				split_name = ur['Contact']['Name'].split(',')
+				registrant_first_name = split_name[1].strip()
+				registrant_last_name = split_name[0].strip()
+
+				toEmail = registrantEmail
+				template = open(self.config.get('files', 'waiverReminder'), 'r')
+
+				replacements =	{"FirstName":ur['Contact']['Name'].split(',')[1], 
+								 "EventName":ur['Event']['Name'].strip(),
+								 "EventDate":event_start_date.strftime(self.time_format_string),
+								 "UserID":ur['Contact']['Id'],
+								}
+				template.seek(0)				 
+				subject = template.read().format(**replacements).split('----')[0]
+				success = self.mailer.SendTemplate(toEmail, template , replacements, self.config.getboolean("script","debug"))
+
+				# Set registration's WaiverDate Field so that we don't spam the registrant with requests
+				for field in ur["RegistrationFields"]:
+					if field["FieldName"] == "WaiverDate":
+						field["Value"] = "WaiverRequested"
+
+				self.WA_API._make_api_request('https://api.wildapricot.org/v2.1/accounts/84576/EventRegistrations/%d' %(ur['Id']), ur, method="PUT")
+
+				print ("Send waiver reminder email to %s:%d\n" % (ur['Contact']['Name'], ur['Contact']['Id']))
+				self.db.AddLogEntry(ur['Event']['Name'].strip(), registrant_first_name +' '+ registrant_last_name, registrantEmail[0],
+									   action="Send email with subject `%s`" %(subject.strip()))
 
 	def ProcessUnpaidRegistrants(self, events):
 			unpaid_registrants = []
@@ -90,7 +157,7 @@ class ChildScript(Script):
 				else:
 					new_registration = False
 
-				if not self.CheckPendingPayment(ur):
+				if not self.WA_API.CheckPendingPayment(ur):
 					if(time_since_registration > self.nag_buffer):
 						if new_registration:
 							if(registration_date < self.enforcement_date):
@@ -144,9 +211,6 @@ class ChildScript(Script):
 
 				if not self.db.GetEntryByEventID(event['Id']):
 					print("event '%s' not in database" % event['Name'].strip())
-					self.db.AddEventToDB(event['Id'])
-					self.db.AddLogEntry(event['Name'].strip(), None, None,
-							   action="Add event `%s` to database" %(event['Name'].strip()))
 
 					for tag in event['Tags']:
 						split_tag = tag.split(':')
@@ -164,6 +228,10 @@ class ChildScript(Script):
 						self.mailer.SendTemplate(instructor_email, template, replacements, self.config.getboolean("script","debug"))
 						self.db.AddLogEntry(event['Name'].strip(), instructor_name, instructor_email,
 									   action="Send class confirmation email")
+
+					self.db.AddEventToDB(event['Id'])
+					self.db.AddLogEntry(event['Name'].strip(), None, None,
+							   action="Add event `%s` to database" %(event['Name'].strip()))
 
 				index = 1
 				for r in self.reminders_days:
@@ -210,7 +278,7 @@ class ChildScript(Script):
 											   action="Send event reminder email")
 						else: 
 							print("Failed to get registrant list")
-                                                
+												
 					index+=1
 
 	def ProcessEventsWithNoCheckinVolunteer(self, events):
@@ -252,6 +320,7 @@ class ChildScript(Script):
 
 		else:
 			self.ProcessUnpaidRegistrants(upcoming_events)
+			self.SendWaiverReminders(upcoming_events)
 			self.SendEventReminders(upcoming_events)
 
 if __name__ == "__main__":
