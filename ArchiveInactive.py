@@ -25,11 +25,11 @@ class ChildScript(Script):
         print(ids)
         for id in ids:
             try:
-                self.WA_API.UpdateContactField(int(id), "Archived", False)
+                self.WA_API.UpdateContactField(int(id), "Archived",True)
             except Exception as e:
                 print("issue with user id:", id )
                 print(e)
                 # print(sys.exc_info()[0])
-
-s = ChildScript("Archive Inactive WA Contacts")
-s.RunAndNotify()
+if __name__ == "__main__":
+    s = ChildScript("Archive Inactive WA Contacts")
+    s.RunAndNotify()
