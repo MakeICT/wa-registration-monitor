@@ -1,12 +1,13 @@
-Registration For {EventName} Has Been Cancelled Due To Non-Payment
+Registration For {EventName} Has Been Cancelled
 ----
 Hello {FirstName},
 
 
-Your registration for "{EventName}" at MakeICT has been cancelled due to non-payment.  If you still wish to attend the class and there are spots available, you may re-register and pay online, or follow the payment instructions in the email you receive after registration.
+We did not hear back from you about how you wanted to pay for "{EventName}", so we assumed you are not coming and we've freed up your spot for someone else.
 
-If you believe this cancellation was in error, please reply to this email and let us know as soon as possible so we can sort it out.
+If you do want to attend you can re-register and pay online, or follow the payment instructions in the email you receive after registration. 
 
+You can reply to this email if you have any questions.
 
 
 Sincerely,

@@ -3,7 +3,9 @@ Class Confirmation - "{EventName}" on {EventDate}
 Hello {FirstName},
 
 
-Your class, "{EventName}" on {EventDate}, has been scheduled.
+Your event, "{EventName}" on {EventDate}, has been scheduled.
+
+Your event has probably not been posted to social media yet. If you want your event to be shared on facebook, you can help remind us by sending a photo to represent your event to socialmedia@makeict.org and checking http://facebook.com/makeict/events to see when it's up! This is especially important if your class is open to the public (no prerequisites), new, not held very often, or if you just really want to make sure it has the best chance of filling up.
 
 Thanks for teaching classes at MakeICT! If you have any questions, please send them in reply to this email.
 
