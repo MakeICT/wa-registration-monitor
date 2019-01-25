@@ -11,11 +11,12 @@ class MailBot():
 
     def connect(self):
         self.server = smtplib.SMTP_SSL()
-        self.server.connect('smtp.gmail.com', 465)
+        print("Mail connect:", self.server.connect('smtp.gmail.com', 465))
         self.server.ehlo()
         #self.server.starttls()
         self.server.login(self.email, self.password)
-        print(self.server)
+        print("Mail Server:", self.server)
+        assert not self.server == None, "Could not connect to mail server"
 
     def disconnect(self):
         try:
@@ -31,6 +32,7 @@ class MailBot():
         self.admin_address = addr
 
     def send(self, to_addrs, subj, body, test=False):
+        print("Sending mail")
         if not self.display_name:
             from_field = self.email
         else:
