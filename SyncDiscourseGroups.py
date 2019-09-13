@@ -30,22 +30,32 @@ class ChildScript(Script):
         self.member_group_id = \
             self.discourse_api.group(self.group_name)['group']['id']
 
-    def SyncUser(self, d_user, wa_user):
+    def SyncUser(self, d_user, wa_contacts):
         # print(self.discourse_api.user_emails(d_user['user']['username']))
         print(d_user['user']['username'], ':',
               d_user['user']['emails'], ':',
-              wa_user['Email'])
+              [c['Email'] for c in wa_contacts])
         is_member = False
+        is_active = False
 
-        assert wa_user['Email'] in d_user['user']['emails']
+        # assert wa_contacts['Email'] in d_user['user']['emails']
+        for contact in wa_contacts:
+            try:
+                is_member = contact['MembershipLevel']['Name'] in self.member_levels
+            except KeyError:
+                print("No WA membership level found")
 
-        try:
-            is_member = wa_user['MembershipLevel']['Name'] in self.member_levels
-        except KeyError:
-            print("No membership level found")
+            try:
+                is_active = contact['Status'] == 'Active'
+            except KeyError:
+                print("WA contact is not active")
 
-        if is_member and wa_user['Status'] == 'Active':
-            print("user is an active member, adding user to group")
+            # If an active WildApricot account is found, stop looking and sync
+            if is_member and is_active:
+                break
+
+        if is_member and is_active:
+            print("User is an active member, adding user to group")
 
             try:
                 if d_user['user']['primary_group_name'] == self.group_name:
@@ -59,6 +69,7 @@ class ChildScript(Script):
                     self.member_group_id, d_user['user']['username'])
             except DiscourseClientError:
                 print("Failed to add user to group")
+
         else:
             print("user is not an active member, removing user from group")
             self.discourse_api.delete_group_member(
@@ -66,16 +77,20 @@ class ChildScript(Script):
 
     def SyncUsers(self, disc_users, wa_users):
         for u in disc_users:
+            # if u['user']['username'] != '':
+            #     continue
             emails = self.discourse_api.user_emails(u['user']['username'])
             email_list = [emails['email']]
             email_list += emails['secondary_emails']
             u['user']['emails'] = email_list
 
+            found_contacts = []
             for contact in wa_users:
                 if contact['Email'] in u['user']['emails']:
                     print("Found WA user for %s" % contact['Email'])
-                    self.SyncUser(u, contact)
-                    break
+                    found_contacts.append(contact)
+
+            self.SyncUser(u, found_contacts)
 
             time.sleep(2)
 
