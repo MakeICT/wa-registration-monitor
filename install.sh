@@ -1,21 +1,36 @@
-# sudo raspi-config
-#     #set locale and timezone
-# sudo apt-get update && sudo apt-get upgrade
-# sudo apt-get install mysql-server python3-dateutils python3-mysqldb python3-apscheduler python3-pip
-# sudo pip3 install smartwaiver-sdk meetup-api
-# mkdir code
-# cd code
-# sudo apt-get install git
-# git clone https://github.com/MakeICT/automation-scripts.git
-# cd automation-scripts/
-# #pull submodules
+
+sudo apt-get update
+sudo apt-get install mariadb-server libmariadbclient-dev
+#fix submodule remotes
+git submodule sync
+git submodule update --init --recursive
+
+pipenv install
 
 # #############################
 # # Drop and install database
 # #############################
+# create random password
+# PASSWDDB="$(openssl rand -base64 12)"
+read -p "Drop and install database [Y/n]: " response
+if [ "" = "$response" ] || [ "Y" = "$response" ] || [ "y" = "$response" ]; then
+    PASSWDDB="21oFw7Yevum5"
+
+    # replace "-" with "_" for database username
+    MAINDB="automation_scripts"
+
+    DBUSER='automation_user'
+
+    sudo mysql -uroot -e "DROP DATABASE ${MAINDB};"
+    sudo mysql -uroot -e "DROP USER ${DBUSER}@localhost;"
+    sudo mysql -uroot -e "CREATE DATABASE ${MAINDB} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+    sudo mysql -uroot -e "CREATE USER ${DBUSER}@localhost;"
+    sudo mysql -uroot -e "GRANT ALL ON automation_scripts.* TO 'automation_user'@'localhost' IDENTIFIED BY '21oFw7Yevum5';"
+    sudo mysql -uroot -e "FLUSH PRIVILEGES;"
 # create database automation_scripts;
 # create user automation_user;
 # grant all on automation_scripts.* to 'automation_user'@'localhost' identified by '21oFw7Yevum5';
+fi
 
 #############################
 # Enable service
@@ -44,4 +59,21 @@ if [ "" = "$response" ] || [ "Y" = "$response" ] || [ "y" = "$response" ]; then
     echo "    To run manually, use"
     echo "        sudo python3 ./Dispatcher.py"
 fi
+
+
+
+
+
+
+
+
+# #create or copy config.ini
+# vim config.ini 
+
+# python RegistrationMonitor.py 
+
+# pipenv shell
+# pipenv install
+
+
 echo "Done!"
