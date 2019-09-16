@@ -10,7 +10,7 @@ class MailBot():
         self.admin_address = None
 
     def connect(self):
-        self.server = smtplib.SMTP_SSL()
+        self.server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         print("Mail connect:", self.server.connect('smtp.gmail.com', 465))
         self.server.ehlo()
         #self.server.starttls()
