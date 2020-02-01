@@ -8,8 +8,8 @@ import urllib
 import configparser
 #import MySQLdb
 
-from WildApricotAPI.WildApricotAPI import WaApiClient
-from MailBot.mailer import MailBot
+from wildapricot_api import WaApiClient
+from mailer import MailBot
 #from Database import Database
 
 #os.chdir(config.get('files', 'installDirectory'))
@@ -50,22 +50,10 @@ script_start_time = datetime.now()
 #current_db = db.GetAll()
 #for entry in current_db:
 #   print (entry)
-config = configparser.SafeConfigParser()
+config = configparser.ConfigParser()
 config.read('config.ini')
 print(config.items('api'))
 print(config.items('thresholds'))
-
-time_format_string = '%B %d, %Y at %I:%M%p'
-unpaid_cutoff = timedelta(days=config.getint('thresholds','unpaidCutOff'))
-unpaid_buffer = timedelta(hours=config.getint('thresholds', 'unpaidBuffer'))
-noshow_drop = timedelta(minutes=config.getint('thresholds','noShowDrop'))
-poll_interval = config.getint('api','pollInterval')
-nag_buffer = timedelta(minutes=config.getint('thresholds','nagBuffer'))
-enforcement_date = datetime.strptime(config.get('thresholds','enforcementDate'),'%m-%d-%y %z')
-reminders = len(config.get('thresholds', 'reminderDays').split(','))
-reminders_days = []
-#for r in config.get('thresholds', 'reminderDays').split(','):
-#   reminders_days.append(timedelta(days=int(r)))
 
 converter = AuthConv(config.get('api','key'))
 mb = MailBot(config.get('email','username'), config.get('email','password'))
@@ -76,24 +64,10 @@ if False:
 	pass
 else:
 	try:
-		# test_user_id=38043528
-		# test_user_id=38657966
-		# test_user_id=42705673
-		# test_event_id=2567080
-		# test_group_id = 280209
-		#result = WA_API.GetEventByID(test_event_id)
-		#result = WA_API.GetRegistrationTypesByEventID(test_event_id)
-		#result = WA_API.SetMemberGroups(test_user_id, [test_group_id])
-		#print(result)
-		#result = WA_API.GetMemberGroups()
-		#for group in result:
-		#   print(group['Name'], group['Id'])
-		#print(result)
-				#Get all contact IDs
-		#
 		valid_authorizations = ['Woodshop','Metalshop','Forge','LaserCutter',\
 								'Mig welding', 'Tig welding', 'Stick welding', 'Manual mill',\
-								'Plasma', 'Metal lathes', 'CNC Plasma', 'Intro Tormach', 'Full Tormach']
+								'Plasma', 'Metal lathes', 'CNC Plasma', 'Intro Tormach', 'Full Tormach',
+								'FDM 3D Printers']
 		
 		auth_groups = [group['Name'] for group in WA_API.GetMemberGroups() if group['Name'].strip().split('_')[0] == 'auth']
 		print(auth_groups)
@@ -109,20 +83,22 @@ else:
 		# for contact in contacts:
 		# 	print(contact['FieldValues'])
 
-		authorization = 'CNC Plasma'
+		# authorization = 'CNC Plasma'
+		authorization = 'FDM 3D Printers'
 		# authorization = 'LaserCutter'
 
 		assert authorization in valid_authorizations, "Not a valid authorization"
 
-		laser_search_strings = ['laser cutter certification', 'laser cutter authorization class', 'laser cutting basics', 'laser cutting quick authorization']
-		cncplasma_search_strings = ['cnc plasma cutting basics', 'cnc plasma with jeremiah burian']
 		if authorization == 'LaserCutter':
-			search_strings = laser_search_strings
+			search_strings = ['laser cutter certification', 'laser cutter authorization class', 'laser cutting basics', 'laser cutting quick authorization']
 		elif authorization == 'CNC Plasma':
-			search_strings = cncplasma_search_strings
+			search_strings = ['cnc plasma cutting basics', 'cnc plasma with jeremiah burian']
+		elif authorization == 'FDM 3D Printers':
+			search_strings = ['3d printing basics']
 
 		for event in events:
 			match = False
+			# print(event['Name'])
 			for string in search_strings:
 				if event['Name'].lower().find(string) == 0:
 					match = True
@@ -131,14 +107,20 @@ else:
 			if match:
 				print(event['Name'], event['StartDate'])
 				registrants = WA_API.GetRegistrantsByEventID(event['Id'])
+				time.sleep(2)
 				for registrant in registrants:
 					if registrant['IsCheckedIn']:
 						total_class_auths += 1
 						current_authorizations = WA_API.GetAuthorizations(registrant['Contact']['Id'])
-						already_authorized = True if current_authorizations.find(authorization)>=0 else False
+						time.sleep(2)
+						if current_authorizations:
+							already_authorized = True if current_authorizations.find(authorization)>=0 else False
+						else:
+							already_authorized = False
 						if not already_authorized:
 							unauthorized_attendees += 1
-							# WA_API.SetAuthorizations(registrant['Contact']['Id'],['LaserCutter'],[event["StartDate"].split('T')[0]])
+							WA_API.SetAuthorizations(registrant['Contact']['Id'],[authorization],[event["StartDate"].split('T')[0]])
+							time.sleep(2)
 						print(registrant["DisplayName"], event["StartDate"].split('T')[0], already_authorized)
 				time.sleep(5)
 
