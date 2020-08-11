@@ -46,7 +46,7 @@ class ChildScript(Script):
                 print("No WA membership level found")
 
             try:
-                is_active = contact['Status'] == 'Active'
+                is_active = contact['Status'] == 'Active' and contact['MembershipEnabled']
             except KeyError:
                 print("WA contact is not active")
 
