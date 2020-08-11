@@ -147,6 +147,7 @@ else:
                             #TODO:approve membership
                         while(1):
                             if WA_API.SetMemberGroups(contact['Id'], [435189]):
+                                WA_API.UpdateContactField(contact['Id'], 'KeyID', MCP_user['nfcID'])
                                 print('added to door auth group')
                                 break
                             time.sleep(5)
