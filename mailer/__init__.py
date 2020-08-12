@@ -2,16 +2,19 @@ import smtplib
 import imaplib
 
 class MailBot():
-    def __init__(self, email, password):
+    def __init__(self, email, password, address, port):
         self.email = email
         self.password = password
+        self.address = address
+        self.port = port
         self.server = None
-        self.display_name = None
+        self.display_name = display_name
+        self.from_address = from_address
         self.admin_address = None
 
     def connect(self):
-        self.server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        print("Mail connect:", self.server.connect('smtp.gmail.com', 465))
+        self.server = smtplib.SMTP_SSL(self.address, self.port)
+        print("Mail connect:", self.server.connect(self.address, self.port))
         self.server.ehlo()
         #self.server.starttls()
         self.server.login(self.email, self.password)
@@ -28,15 +31,18 @@ class MailBot():
     def setDisplayName(self, name):
         self.display_name = name
 
+    def setFromAddress(self, from_addr):
+        self.from_address = from_addr
+
     def setAdminAddress(self, addr):
         self.admin_address = addr
 
     def send(self, to_addrs, subj, body, test=False):
         print("Sending mail")
         if not self.display_name:
-            from_field = self.email
+            from_field = self.email if not self.from_address else self.from_address
         else:
-            from_field = '"%s" <%s>' % (self.display_name, self.email)
+            from_field = '"%s" <%s>' % (self.display_name, self.email if not self.from_address else self.from_address)
 
         if not type(to_addrs) == list:
             to_addrs = [to_addrs]

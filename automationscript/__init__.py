@@ -22,7 +22,7 @@ class Script(object):
 		self.config.read('config.ini')
 		os.chdir(self.config.get('files','installDirectory'))
 
-		self.mailer = MailBot(self.config.get('email','username'), self.config.get('email','password'))
+		self.mailer = MailBot(self.config.get('email','username'), self.config.get('email','password'), self.config.get('email','server'), self.config.get('email','port'))
 		self.mailer.setDisplayName(self.config.get('email', 'displayName'))
 		self.mailer.setAdminAddress(self.config.get('email', 'adminAddress'))
 
