@@ -8,8 +8,8 @@ class MailBot():
         self.address = address
         self.port = port
         self.server = None
-        self.display_name = display_name
-        self.from_address = from_address
+        self.display_name = None
+        self.from_address = None
         self.admin_address = None
 
     def connect(self):
