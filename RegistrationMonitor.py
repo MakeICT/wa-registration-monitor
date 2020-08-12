@@ -10,6 +10,8 @@ from database import Database
 
 class ChildScript(Script):
 	def Setup(self):
+		self.mailer.setDisplayName("MakeICT Events")
+		self.mailer.setFromAddress("events-monitor@makeict.org")
 		self.WA_API = WaApiClient()        
 		while(not self.WA_API.ConnectAPI(self.config.get('api','key'))):
 			time.sleep(5)

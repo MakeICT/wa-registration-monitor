@@ -14,7 +14,7 @@ config = configparser.SafeConfigParser()
 config.read('config.ini')
 os.chdir(config.get('files','installDirectory'))
 
-mailer = MailBot(config.get('email','username'), config.get('email','password'))
+mailer = MailBot(config.get('email','username'), config.get('email','password'), config.get('email','server'), config.get('email','port'))
 mailer.setDisplayName(config.get('email', 'displayName'))
 mailer.setAdminAddress(config.get('email', 'adminAddress'))
 
